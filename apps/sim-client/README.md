@@ -41,7 +41,7 @@ Everything is read from the repo-root `.env` or the real environment.
 | `POLLY_VOICE_ID`, `POLLY_ENGINE` | backend | `Joanna`, `neural` | Voice for spoken replies |
 | `MCP_URL` | backend, runner | `VITE_MCP_URL`, then `http://localhost:8787/mcp` | MCP server the browser is told to use |
 | `MCP_CLIENT_TOKEN` | backend, runner | first entry of `MCP_BEARER_TOKENS` | Bearer token the browser presents to the MCP server |
-| `DEMO_DAILY_REQUEST_CAP` | backend | `2000` | Converse and speak requests per UTC day. `0` closes both routes |
+| `DEMO_DAILY_REQUEST_CAP` | backend | `2000` locally, `600` in the deployed stack | Converse and speak requests per UTC day. `0` closes both routes |
 | `DEMO_RATE_LIMIT_PER_MINUTE` | backend | `40` | Requests per minute per IP, all routes |
 | `CLIENT_IP_HEADER` | Lambda | none | Trusted header with the visitor address, e.g. `cloudfront-viewer-address` |
 | `CITYDESK_CITY_NAME`, `CITYDESK_TIME_ZONE` | backend, runner | `Boston`, `America/New_York` | City and "today" in the system prompt |
@@ -197,18 +197,17 @@ must be `application/json`, so another site cannot call the routes from a browse
 **Limits.** Every route is rate-limited per IP per minute; `/api/converse` and `/api/speak` also
 count toward `DEMO_DAILY_REQUEST_CAP`. Both fail closed with 429 or 503 and a `retry-after` header:
 when a limit is hit, when a setting is present but not a whole number, and when the counters cannot
-be read. The counters sit behind `CounterStore` in `server/limits.ts`. The default store is
-in-memory, which is exact for one process but **per execution environment in Lambda**: with N warm
-instances the real ceiling is N times the cap, and a recycled instance starts from zero. Until a
-shared store is plugged in, give the function a small reserved concurrency and a billing alarm.
+be read. The counters sit behind `CounterStore` in `server/limits.ts`. Locally the store is in
+memory. In Lambda the daily cap is one atomic counter in DynamoDB (`SharedDayCounter` in
+`server/aws.ts`, used when `CITYDESK_TABLE` is set), so it holds across every warm instance; the
+per-IP minute counters stay in memory on purpose.
 
 **Configuration.** `server/config.ts` is the only module that reads settings. It reads through a
-`ConfigSource` (a function from name to value); the default is the environment. To take values from
-SSM Parameter Store in Lambda, put a source in front of it where `sharedConfig` is defined:
-
-```ts
-export const sharedConfig = cachedConfig(() => loadConfig(layeredSource(ssmSource, envSource())));
-```
+`ConfigSource` (a function from name to value); the default is the environment. In Lambda,
+`server/lambda.ts` puts Parameter Store in front of it when `CITYDESK_SSM_PREFIX` is set
+(`ssmConfigSource` in `server/aws.ts`), which is where the MCP bearer token comes from. A relative
+`MCP_URL` such as `/mcp` means "this page's own origin", which is how the deployed client reaches
+the MCP server through CloudFront.
 
 **Deploying.** `dist/` is plain static hosting. Route `/api/*` to a Lambda Function URL running
 `server/lambda.ts` (export `handler`, payload format 2.0; audio is returned base64-encoded). The
@@ -229,10 +228,15 @@ stops playback and abandons a turn that is still running.
 called directly on Bedrock, the tools on a real MCP server.
 
 ```bash
+pnpm demo:conversation     # from the repo root: writes today's scenario, then runs it
+
 pnpm --filter @citydesk/sim-client conversation \
-  --scenario apps/sim-client/scripts/scenarios/example.json \
-  --out results/sim-client/example.json
+  --scenario results/conversation.scenario.json \
+  --out results/conversation.json
 ```
+
+`pnpm demo:scenario` (root `scripts/make_scenario.ts`) writes the scenario from live data, because
+the duplicate scene needs a pothole that is open today.
 
 Paths are relative to the directory the command is run from. `--help` lists the other flags
 (`--mcp-url`, `--token`, `--device`, `--model`, `--region`, `--max-tool-rounds`, `--structured-as`).
@@ -268,6 +272,10 @@ A scenario is a list of user turns, each with optional expectations:
 | `no_tools` | No tool was called |
 | `reply_includes`, `reply_excludes` | The spoken reply contains / does not contain each string, ignoring case |
 
+A turn may also set `new_session: true` (clear the assistant's history and reconnect the MCP client
+as the same device, as when the resident comes back another day) and `wait_seconds` (pause first,
+for example to let a sandbox request change status).
+
 A turn also fails if it did not end with a reply from the model (round cap, lost model call). After
 a failed model call the remaining turns are skipped. `scripts/scenarios/example.json` only shows
 the format; it has not been run against the CityDesk server.
@@ -284,9 +292,7 @@ server, model, region, device ID, tool lists).
   by type-checking against AWS SDK v3. The request shapes, the `json` tool result block, error
   names and model behaviour under the system prompt are unverified against the real services.
 - The Lambda adapter has only been run in unit tests.
-- Cards were exercised with the ext-apps example servers (`server-debug`, `server-basic-vanillajs`
-  2.0.3) and with a throwaway server returning contract-shaped results, not with the real CityDesk
-  cards, which did not exist yet. Against a CityDesk server build that was running locally at the
-  time (six tools, no UI resources yet) the client connected, listed the tools and called
-  `collection_schedule`.
+- With the real CityDesk server and cards, the client has been checked through its developer
+  drawer (manual tool calls, both cards rendering with live Boston data; screenshots in
+  `results/integration/`). A full spoken or typed turn needs Bedrock and has not been run.
 - Speech recognition and audio playback were not exercised with a real microphone or speaker.
