@@ -1,0 +1,36 @@
+{
+  "name": "placeholder",
+  "description": "Shows the scenario format. The utterances and expectations are illustrative and have not been run against the CityDesk server; replace this file with the real scenario.",
+  "turns": [
+    {
+      "user": "There is a pothole in front of 700 Boylston Street.",
+      "note": "A report that the duplicate check should catch.",
+      "expect": {
+        "tool": "report_issue",
+        "outcome": "possible_duplicate",
+        "reply_excludes": ["request_id"]
+      }
+    },
+    {
+      "user": "Yes, follow that one instead.",
+      "expect": {
+        "tool": "follow_request",
+        "outcome": "followed"
+      }
+    },
+    {
+      "user": "When does trash go out at 700 Boylston Street?",
+      "expect": {
+        "tool": "collection_schedule",
+        "outcome": "schedule"
+      }
+    },
+    {
+      "user": "What is the capital of France?",
+      "note": "Off topic: the assistant should decline without calling a tool.",
+      "expect": {
+        "no_tools": true
+      }
+    }
+  ]
+}
