@@ -16,22 +16,24 @@ import { BOSTON, Open311Client } from 'open311-mcp';
 import type { IssueResult } from '../apps/citydesk/src/contract.ts';
 import { loadEnv, USER_AGENT } from './lib/env.ts';
 
-loadEnv();
-
-const mcpUrl = process.env.MCP_URL ?? `http://localhost:${process.env.PORT ?? 8787}/mcp`;
-const token = process.env.MCP_TOKEN ?? (process.env.MCP_BEARER_TOKENS ?? '').split(',')[0]?.trim() ?? '';
 const POTHOLE_CODE = '9aaa7721-e212-4d16-a77e-d8f8d2f4ba28';
+/** Well-known addresses for the filing scene; the first with no open streetlight report nearby is used. */
+const STREETLIGHT_CANDIDATES = ['700 Boylston Street', '1 City Hall Plaza', '4 Jersey Street', '100 Huntington Avenue'];
 
-const client = new Client({ name: 'citydesk-demo-places', version: '0.1.0' });
-await client.connect(
-  new StreamableHTTPClientTransport(new URL(mcpUrl), {
-    requestInit: { headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), 'x-citydesk-device': 'demo-places-probe' } },
-  }),
-);
-
-async function nearby(issueType: string, location: string): Promise<IssueResult> {
-  const result = await client.callTool({ name: 'find_nearby_reports', arguments: { issue_type: issueType, location } });
-  return result.structuredContent as unknown as IssueResult;
+export interface DemoPlaces {
+  checkedAt: string;
+  server: string;
+  open_potholes_last_14_days: number;
+  pothole: {
+    say: string;
+    location: string;
+    existing_request_id: string;
+    distance_m?: number;
+    reported: string;
+    has_photo: boolean;
+  } | null;
+  streetlight: { say: string; location: string; resolved?: string } | null;
+  trash: { say: string; address: string };
 }
 
 /** "617 E Third St, Boston, MA 02127" becomes "617 E Third St". Ranges and intersections are skipped. */
@@ -40,58 +42,84 @@ function streetAddress(address: string | undefined): string | undefined {
   return head && /^\d+[A-Za-z]? \S+/.test(head) && !head.includes('&') ? head : undefined;
 }
 
-const boston = new Open311Client(BOSTON, { userAgent: USER_AGENT });
-const open = await boston.searchRequests({
-  serviceCode: POTHOLE_CODE,
-  status: 'open',
-  startDate: new Date(Date.now() - 14 * 86_400_000),
-  limit: 300,
-});
+export async function findDemoPlaces(mcpUrl: string, token: string): Promise<DemoPlaces> {
+  const client = new Client({ name: 'citydesk-demo-places', version: '0.1.0' });
+  await client.connect(
+    new StreamableHTTPClientTransport(new URL(mcpUrl), {
+      requestInit: {
+        headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), 'x-citydesk-device': 'demo-places-probe' },
+      },
+    }),
+  );
+  const nearby = async (issueType: string, location: string): Promise<IssueResult> => {
+    const result = await client.callTool({ name: 'find_nearby_reports', arguments: { issue_type: issueType, location } });
+    return result.structuredContent as unknown as IssueResult;
+  };
 
-let pothole: Record<string, unknown> | undefined;
-let checked = 0;
-for (const request of open) {
-  const address = streetAddress(request.address);
-  if (!address || checked >= 12) continue;
-  checked++;
-  const seen = await nearby('pothole', address);
-  const hit = seen.outcome === 'nearby' ? seen.requests.find((r) => r.service_request_id === request.service_request_id) : undefined;
-  if (hit) {
-    pothole = {
-      say: `There's a big pothole in front of ${address}.`,
-      location: address,
-      existing_request_id: hit.request_id,
-      distance_m: hit.distance_m,
-      reported: hit.requested_datetime,
-      has_photo: hit.media_url !== undefined,
-    };
-    break;
-  }
-}
+  try {
+    const boston = new Open311Client(BOSTON, { userAgent: USER_AGENT });
+    const open = await boston.searchRequests({
+      serviceCode: POTHOLE_CODE,
+      status: 'open',
+      startDate: new Date(Date.now() - 14 * 86_400_000),
+      limit: 300,
+    });
 
-// A well-known address for the filing scene, checked to have no open streetlight report nearby.
-let streetlight: Record<string, unknown> | undefined;
-for (const address of ['700 Boylston Street', '1 City Hall Plaza', '4 Jersey Street', '100 Huntington Avenue']) {
-  const seen = await nearby('streetlight', address);
-  if (seen.outcome === 'nearby' && seen.requests.length === 0) {
-    streetlight = { say: `The streetlight outside ${address} is out.`, location: address, resolved: seen.resolved_location?.label };
-    break;
-  }
-}
+    let pothole: DemoPlaces['pothole'] = null;
+    let checked = 0;
+    for (const request of open) {
+      const address = streetAddress(request.address);
+      if (!address || checked >= 12) continue;
+      checked++;
+      const seen = await nearby('pothole', address);
+      const hit =
+        seen.outcome === 'nearby' ? seen.requests.find((r) => r.service_request_id === request.service_request_id) : undefined;
+      if (hit) {
+        pothole = {
+          say: `There's a big pothole in front of ${address}.`,
+          location: address,
+          existing_request_id: hit.request_id,
+          distance_m: hit.distance_m,
+          reported: hit.requested_datetime,
+          has_photo: hit.media_url !== undefined,
+        };
+        break;
+      }
+    }
 
-await client.close();
-console.log(
-  JSON.stringify(
-    {
+    let streetlight: DemoPlaces['streetlight'] = null;
+    for (const address of STREETLIGHT_CANDIDATES) {
+      const seen = await nearby('streetlight', address);
+      if (seen.outcome === 'nearby' && seen.requests.length === 0) {
+        streetlight = { say: `The streetlight outside ${address} is out.`, location: address, resolved: seen.resolved_location?.label };
+        break;
+      }
+    }
+
+    return {
       checkedAt: new Date().toISOString(),
       server: mcpUrl,
       open_potholes_last_14_days: open.length,
-      pothole: pothole ?? null,
-      streetlight: streetlight ?? null,
+      pothole,
+      streetlight,
       trash: { say: 'When does trash go out at 700 Boylston Street?', address: '700 Boylston Street' },
-    },
-    null,
-    2,
-  ),
-);
-if (!pothole || !streetlight) process.exitCode = 1;
+    };
+  } finally {
+    await client.close();
+  }
+}
+
+export function serverFromEnv(): { mcpUrl: string; token: string } {
+  loadEnv();
+  return {
+    mcpUrl: process.env.MCP_URL ?? `http://localhost:${process.env.PORT ?? 8787}/mcp`,
+    token: process.env.MCP_TOKEN ?? (process.env.MCP_BEARER_TOKENS ?? '').split(',')[0]?.trim() ?? '',
+  };
+}
+
+if (import.meta.main) {
+  const { mcpUrl, token } = serverFromEnv();
+  const places = await findDemoPlaces(mcpUrl, token);
+  console.log(JSON.stringify(places, null, 2));
+  if (!places.pothole || !places.streetlight) process.exitCode = 1;
+}
