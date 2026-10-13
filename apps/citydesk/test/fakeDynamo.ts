@@ -52,6 +52,13 @@ export class FakeDynamo {
       }
       const target = item ?? { ...k };
       const values = (command.input.ExpressionAttributeValues ?? {}) as Record<string, unknown>;
+      if (String(command.input.UpdateExpression).startsWith('ADD ')) {
+        // The one counter expression DynamoStore.increment sends.
+        target.n = Number(target.n ?? 0) + Number(values[':one']);
+        target.ttl ??= values[':ttl'];
+        this.items.set(this.key(k.pk, k.sk), target);
+        return { Attributes: { n: target.n } };
+      }
       const [setPart, removePart] = String(command.input.UpdateExpression).split(/\s+REMOVE\s+/);
       for (const assign of setPart!.replace(/^SET\s+/, '').split(',')) {
         const [name, ref] = assign.split('=').map((s) => s.trim());

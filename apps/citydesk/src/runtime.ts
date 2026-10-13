@@ -32,12 +32,18 @@ export interface CityDeskConfig {
   dedupeWindowDays: number;
   /** Sandbox lifecycle simulation; false keeps sandbox requests open forever. */
   sandboxLifecycle: { assignAfterMs: number; closeAfterMs: number } | false;
+  /** Most reports one household may file per hour. */
+  maxFilingsPerUserPerHour: number;
+  /** Most reports all households together may file per hour: a ceiling on abuse of a public demo. */
+  maxFilingsPerHour: number;
 }
 
 export const DEFAULT_CONFIG: CityDeskConfig = {
   dedupeRadiusMeters: 50,
   dedupeWindowDays: 30,
   sandboxLifecycle: { assignAfterMs: 2 * 60_000, closeAfterMs: 20 * 3_600_000 },
+  maxFilingsPerUserPerHour: 10,
+  maxFilingsPerHour: 200,
 };
 
 /** One Open311 endpoint as the tools see it. */

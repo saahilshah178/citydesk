@@ -4,6 +4,7 @@
  *   pk = USER#<userId>   sk = REQ#<request_id>     a request the user filed or follows
  *   pk = USER#<userId>   sk = PROFILE#home         the home address they last asked about
  *   pk = SANDBOX         sk = REQ#<id>             a request held by the built-in Open311 sandbox
+ *   pk = COUNTER         sk = <name>               an hourly filing counter (see UserStore.increment)
  *
  * Items carry a `ttl` (epoch seconds) so demo data expires on its own.
  */
@@ -131,6 +132,21 @@ export class DynamoStore implements UserStore {
         Item: { pk: `USER#${userId}`, sk: 'PROFILE#home', ttl: this.ttl(USER_TTL_DAYS), ...home },
       }),
     );
+  }
+
+  async increment(counter: string, ttlSeconds: number): Promise<number> {
+    const out = await this.doc.send(
+      new UpdateCommand({
+        TableName: this.table,
+        Key: { pk: 'COUNTER', sk: counter },
+        // Atomic across Lambda instances. The TTL is set once, so the counter lives for one window.
+        UpdateExpression: 'ADD #n :one SET #ttl = if_not_exists(#ttl, :ttl)',
+        ExpressionAttributeNames: { '#n': 'n', '#ttl': 'ttl' },
+        ExpressionAttributeValues: { ':one': 1, ':ttl': Math.floor(this.now() / 1000) + ttlSeconds },
+        ReturnValues: 'UPDATED_NEW',
+      }),
+    );
+    return Number(out.Attributes?.n ?? 1);
   }
 
   /** The Open311 sandbox keeps its requests in the same table, so they survive across Lambda instances. */

@@ -84,6 +84,16 @@ export class MemoryStore implements UserStore {
     this.persist();
   }
 
+  private readonly counters = new Map<string, { value: number; expires: number }>();
+
+  async increment(counter: string, ttlSeconds: number): Promise<number> {
+    const t = Date.now();
+    const current = this.counters.get(counter);
+    const next = current && current.expires > t ? { ...current, value: current.value + 1 } : { value: 1, expires: t + ttlSeconds * 1000 };
+    this.counters.set(counter, next);
+    return next.value;
+  }
+
   /** The Open311 sandbox keeps its requests in the same store. */
   sandboxStore(): SandboxStore {
     return {

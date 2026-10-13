@@ -81,6 +81,16 @@ describe.each(stores)('%s: the UserStore contract', (_name, make) => {
   });
 });
 
+describe.each(stores)('%s: counters', (_name, make) => {
+  it('counts up per name', async () => {
+    const { store } = make();
+    expect(await store.increment('filings#alice#1', 7200)).toBe(1);
+    expect(await store.increment('filings#alice#1', 7200)).toBe(2);
+    expect(await store.increment('filings#bob#1', 7200)).toBe(1);
+    expect(await store.increment('filings#alice#2', 7200)).toBe(1);
+  });
+});
+
 describe('DynamoStore specifics', () => {
   it('uses the documented keys and sets a TTL on every item', async () => {
     const fake = new FakeDynamo();
@@ -99,6 +109,18 @@ describe('DynamoStore specifics', () => {
     expect(fake.commands.every((c) => c.input.TableName === 'citydesk-test')).toBe(true);
     // Stored attributes never leak the table keys back to callers.
     expect(await store.get('alice', 'boston/a')).not.toHaveProperty('pk');
+  });
+
+  it('keeps counters in their own partition with a TTL, using an atomic ADD', async () => {
+    const fake = new FakeDynamo();
+    const store = new DynamoStore({ tableName: 'citydesk-test', client: fake, now: () => NOW });
+    await store.increment('filings#all#480000', 7200);
+    const command = fake.commands.at(-1)!;
+    expect(command.input.Key).toEqual({ pk: 'COUNTER', sk: 'filings#all#480000' });
+    expect(command.input.UpdateExpression).toBe('ADD #n :one SET #ttl = if_not_exists(#ttl, :ttl)');
+    expect((command.input.ExpressionAttributeValues as Record<string, number>)[':ttl']).toBe(Math.floor(NOW / 1000) + 7200);
+    // Counters never show up as a user's requests.
+    expect(await store.list('all')).toEqual([]);
   });
 
   it('follows pagination when listing', async () => {

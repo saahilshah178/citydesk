@@ -494,6 +494,24 @@ export function registerCityDeskTools(server: McpServer, rt: CityDeskRuntime, us
         );
       }
 
+      // A public demo needs a ceiling: cap filings per household and overall, per clock hour.
+      const hour = Math.floor(rt.now() / 3_600_000);
+      const mine = await rt.store.increment(`filings#${user.userId}#${hour}`, 7200);
+      const everyone = await rt.store.increment(`filings#all#${hour}`, 7200);
+      if (mine > rt.config.maxFilingsPerUserPerHour || everyone > rt.config.maxFilingsPerHour) {
+        return errorResult(
+          rt,
+          'issue',
+          'rate_limited',
+          'I have filed as many reports as I can for this hour. Please try again a little later.',
+          mine > rt.config.maxFilingsPerUserPerHour
+            ? `This household reached the limit of ${rt.config.maxFilingsPerUserPerHour} reports per hour.`
+            : `The server reached its limit of ${rt.config.maxFilingsPerHour} reports per hour.`,
+          true,
+          { retry_after_seconds: 3600 - Math.floor((rt.now() / 1000) % 3600) },
+        );
+      }
+
       const created = await target.endpoint.client.createRequest(
         {
           serviceCode: target.service.service_code,

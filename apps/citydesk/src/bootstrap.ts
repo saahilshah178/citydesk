@@ -97,6 +97,8 @@ export async function buildRuntime(options: BootstrapOptions): Promise<Bootstrap
     config: {
       dedupeRadiusMeters: positiveNumber(env.CITYDESK_DEDUPE_RADIUS_M, 50),
       dedupeWindowDays: positiveNumber(env.CITYDESK_DEDUPE_WINDOW_DAYS, 30),
+      maxFilingsPerUserPerHour: positiveNumber(env.CITYDESK_MAX_FILINGS_PER_USER_PER_HOUR, 10),
+      maxFilingsPerHour: positiveNumber(env.CITYDESK_MAX_FILINGS_PER_HOUR, 200),
     },
   });
   return { runtime, hooks: {}, summary };

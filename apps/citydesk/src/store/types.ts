@@ -39,4 +39,9 @@ export interface UserStore {
   ): Promise<void>;
   getHomeAddress(userId: string): Promise<HomeAddress | undefined>;
   setHomeAddress(userId: string, home: HomeAddress): Promise<void>;
+  /**
+   * Adds one to a named counter and returns the new value. Counters expire `ttlSeconds` after their
+   * first increment. Used to cap how many reports one household, and the whole demo, can file per hour.
+   */
+  increment(counter: string, ttlSeconds: number): Promise<number>;
 }

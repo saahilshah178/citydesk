@@ -116,6 +116,25 @@ describe('report_issue', () => {
     expect(await h.runtime.sandbox.store.list()).toHaveLength(2);
   });
 
+  it('caps how many reports one household can file in an hour, and resets the next hour', async () => {
+    const h = harness({ config: { maxFilingsPerUserPerHour: 2 } });
+    const client = await h.connect('household-0001');
+    const args = { issue_type: 'graffiti', description: 'Graffiti', location: '700 Boylston Street', file_even_if_duplicate: true };
+    expect((await h.call<IssueResult>(client, 'report_issue', args)).data.outcome).toBe('filed');
+    expect((await h.call<IssueResult>(client, 'report_issue', args)).data.outcome).toBe('filed');
+    const third = await h.call<ErrorResult>(client, 'report_issue', args);
+    expect(third.isError).toBe(true);
+    expect(third.data.error).toMatchObject({ code: 'rate_limited', retryable: true });
+    expect(third.data.error.details).toHaveProperty('retry_after_seconds');
+    expect(await h.runtime.sandbox.store.list()).toHaveLength(2);
+
+    // Another household is not affected, and the first one can file again in the next hour.
+    const neighbor = await h.connect('household-0002');
+    expect((await h.call<IssueResult>(neighbor, 'report_issue', args)).data.outcome).toBe('filed');
+    h.advance(3_600_000);
+    expect((await h.call<IssueResult>(client, 'report_issue', args)).data.outcome).toBe('filed');
+  });
+
   it('asks which neighborhood when the address exists in several', async () => {
     const h = harness();
     const client = await h.connect();
