@@ -1,0 +1,401 @@
+{
+  "ranAt": "2026-10-13T08:10:32.600Z",
+  "source": "https://boston2-production.spotmobile.net/open311/v2/requests.json",
+  "method": "Requests replayed in filing order. A request counts as matched when an earlier request of the same service_code was still open at the moment it was filed, had been filed within the window, and lay within the radius.",
+  "parameters": {
+    "radius_m": 50,
+    "window_days": 30
+  },
+  "replay_period": {
+    "from": "2026-09-13",
+    "to": "2026-10-12",
+    "days": 30
+  },
+  "lookback_from": "2026-08-14",
+  "requests": {
+    "fetched_including_lookback": 50780,
+    "in_replay_period": 23031,
+    "replayed_with_coordinates_and_service": 23017,
+    "without_coordinates_or_service": 14
+  },
+  "matched": {
+    "count": 8226,
+    "percent_of_replayed": 35.7
+  },
+  "sensitivity": {
+    "by_radius_m": [
+      {
+        "radius_m": 10,
+        "matched": 4570,
+        "percent": 19.9
+      },
+      {
+        "radius_m": 25,
+        "matched": 6553,
+        "percent": 28.5
+      },
+      {
+        "radius_m": 50,
+        "matched": 8226,
+        "percent": 35.7
+      },
+      {
+        "radius_m": 100,
+        "matched": 10183,
+        "percent": 44.2
+      },
+      {
+        "radius_m": 200,
+        "matched": 12503,
+        "percent": 54.3
+      }
+    ],
+    "by_window_days": [
+      {
+        "window_days": 1,
+        "matched": 3859,
+        "percent": 16.8
+      },
+      {
+        "window_days": 7,
+        "matched": 6130,
+        "percent": 26.6
+      },
+      {
+        "window_days": 14,
+        "matched": 7123,
+        "percent": 30.9
+      },
+      {
+        "window_days": 30,
+        "matched": 8226,
+        "percent": 35.7
+      }
+    ]
+  },
+  "groups": [
+    {
+      "label": "Fixed infrastructure (potholes, streetlights, sidewalks, signals, signs, graffiti, fallen trees)",
+      "services": [
+        "Broken Park Equipment",
+        "Broken Public Waste Receptacle",
+        "Crosswalk Maintenance",
+        "Damaged Sign",
+        "Damaged/Faded Sign",
+        "Fallen Tree or Branches",
+        "Illegal Graffiti",
+        "Lane Divider",
+        "Missing / Knocked Down Sign",
+        "Missing Sign",
+        "Park Light Outage",
+        "Pothole",
+        "Road Marking Maintenance",
+        "Sidewalk Repair",
+        "Sign Knockdown",
+        "Street Light Electrical Safety",
+        "Street Light Knockdown",
+        "Street Light Other",
+        "Street Light Outage",
+        "Traffic Signal Knockdown",
+        "Traffic Signal Request"
+      ],
+      "replayed": 3617,
+      "matched": 965,
+      "percent": 26.7
+    },
+    {
+      "label": "Everything except Illegal Parking",
+      "services": [
+        "Abandoned Bicycle",
+        "Abandoned Building",
+        "Abandoned Vehicle",
+        "Ballfield Issue",
+        "Broken Park Equipment",
+        "Broken Public Waste Receptacle",
+        "Cemetery Maintenance",
+        "Code Enforcement Collection",
+        "Construction Debris",
+        "Crosswalk Maintenance",
+        "Damaged Sign",
+        "Damaged/Faded Sign",
+        "Dead Animal General",
+        "Domestic Animal Issue",
+        "Dropped Personal Item",
+        "External referral",
+        "Fallen Tree or Branches",
+        "Fences/Guardrails/Bollards",
+        "General Emergency",
+        "General Traffic Engineering Request",
+        "Illegal Auto Body Shop",
+        "Illegal Dumping or Disposal",
+        "Illegal Graffiti",
+        "Illegal Yard Parking",
+        "Illegally Blocked Sidewalk",
+        "Improper Trash Storage",
+        "Install New Signal",
+        "Item Price Missing",
+        "Lane Divider",
+        "Litter & Debris",
+        "Locked Gates",
+        "Lost Pet",
+        "Missed Waste Pick-up",
+        "Missing / Knocked Down Sign",
+        "Missing Manhole Cover",
+        "Missing Sign",
+        "Municipal Lots",
+        "Municipal Parking Lot Complaints",
+        "Needle Pickup",
+        "New / Modified Sign Request",
+        "Other",
+        "Other",
+        "Overflowing Trash",
+        "Overflowing or Unkept Dumpster",
+        "Overgrown Weeds",
+        "Park Dead Animal",
+        "Park Groundskeeping",
+        "Park Light Outage",
+        "Park Litter & Debris",
+        "Park Overflowing Trash Can",
+        "Park Suggestions",
+        "Parking Meter Repairs",
+        "Parks General Request",
+        "Pest Infestation - Residential",
+        "Pigeon Infestation",
+        "Planting Request",
+        "Poor Conditions of Property",
+        "Pothole",
+        "Private Parking Lot Complaints",
+        "Pruning Request",
+        "Request New Crosswalk",
+        "Request New Markings",
+        "Request New Public Waste Receptacle",
+        "Road Marking Maintenance",
+        "Roadway Repair",
+        "Rodent Activity",
+        "Scanning Overcharge",
+        "Short Term Rental",
+        "Sidewalk Repair",
+        "Sign Knockdown",
+        "Sticker Request",
+        "Street Light Electrical Safety",
+        "Street Light Knockdown",
+        "Street Light Other",
+        "Street Light Outage",
+        "Traffic Signal Knockdown",
+        "Traffic Signal Request",
+        "Trash Placed Out Early",
+        "Tree or Stump Removal",
+        "Unauthorized Signage",
+        "Unauthorized Vending",
+        "Unsatisfactory Living Conditions",
+        "Utility Casting Repair",
+        "Utility Contractor Complaints",
+        "Valet Parking Problems",
+        "Wild Animal Issue"
+      ],
+      "replayed": 16124,
+      "matched": 2667,
+      "percent": 16.5
+    },
+    {
+      "label": "Illegal Parking only",
+      "services": [
+        "Illegal Parking"
+      ],
+      "replayed": 6893,
+      "matched": 5559,
+      "percent": 80.6
+    }
+  ],
+  "by_service": [
+    {
+      "service_name": "Illegal Parking",
+      "replayed": 6893,
+      "matched": 5559,
+      "percent": 80.6,
+      "still_open_today_percent": 89.3
+    },
+    {
+      "service_name": "Litter & Debris",
+      "replayed": 2248,
+      "matched": 386,
+      "percent": 17.2,
+      "still_open_today_percent": 8.2
+    },
+    {
+      "service_name": "Needle Pickup",
+      "replayed": 880,
+      "matched": 115,
+      "percent": 13.1,
+      "still_open_today_percent": 3.4
+    },
+    {
+      "service_name": "Dead Animal General",
+      "replayed": 843,
+      "matched": 81,
+      "percent": 9.6,
+      "still_open_today_percent": 6.2
+    },
+    {
+      "service_name": "Improper Trash Storage",
+      "replayed": 773,
+      "matched": 73,
+      "percent": 9.4,
+      "still_open_today_percent": 3.6
+    },
+    {
+      "service_name": "Rodent Activity",
+      "replayed": 745,
+      "matched": 123,
+      "percent": 16.5,
+      "still_open_today_percent": 7.3
+    },
+    {
+      "service_name": "Trash Placed Out Early",
+      "replayed": 729,
+      "matched": 162,
+      "percent": 22.2,
+      "still_open_today_percent": 2.5
+    },
+    {
+      "service_name": "Sidewalk Repair",
+      "replayed": 693,
+      "matched": 219,
+      "percent": 31.6,
+      "still_open_today_percent": 72.9
+    },
+    {
+      "service_name": "Illegal Dumping or Disposal",
+      "replayed": 653,
+      "matched": 50,
+      "percent": 7.7,
+      "still_open_today_percent": 4.7
+    },
+    {
+      "service_name": "Missed Waste Pick-up",
+      "replayed": 570,
+      "matched": 41,
+      "percent": 7.2,
+      "still_open_today_percent": 2.2
+    },
+    {
+      "service_name": "Street Light Outage",
+      "replayed": 504,
+      "matched": 153,
+      "percent": 30.4,
+      "still_open_today_percent": 48.9
+    },
+    {
+      "service_name": "Pothole",
+      "replayed": 495,
+      "matched": 117,
+      "percent": 23.6,
+      "still_open_today_percent": 31.6
+    },
+    {
+      "service_name": "Fallen Tree or Branches",
+      "replayed": 464,
+      "matched": 67,
+      "percent": 14.4,
+      "still_open_today_percent": 15.5
+    },
+    {
+      "service_name": "Overflowing Trash",
+      "replayed": 456,
+      "matched": 80,
+      "percent": 17.5,
+      "still_open_today_percent": 8.9
+    },
+    {
+      "service_name": "Other",
+      "replayed": 448,
+      "matched": 75,
+      "percent": 16.7,
+      "still_open_today_percent": 4.2
+    },
+    {
+      "service_name": "Illegally Blocked Sidewalk",
+      "replayed": 439,
+      "matched": 33,
+      "percent": 7.5,
+      "still_open_today_percent": 12.6
+    },
+    {
+      "service_name": "Domestic Animal Issue",
+      "replayed": 396,
+      "matched": 37,
+      "percent": 9.3,
+      "still_open_today_percent": 12.2
+    },
+    {
+      "service_name": "Abandoned Vehicle",
+      "replayed": 374,
+      "matched": 106,
+      "percent": 28.3,
+      "still_open_today_percent": 33.7
+    },
+    {
+      "service_name": "Pruning Request",
+      "replayed": 352,
+      "matched": 53,
+      "percent": 15.1,
+      "still_open_today_percent": 52.5
+    },
+    {
+      "service_name": "Illegal Graffiti",
+      "replayed": 316,
+      "matched": 131,
+      "percent": 41.5,
+      "still_open_today_percent": 44.7
+    },
+    {
+      "service_name": "Pest Infestation - Residential",
+      "replayed": 304,
+      "matched": 27,
+      "percent": 8.9,
+      "still_open_today_percent": 8.4
+    },
+    {
+      "service_name": "Damaged Sign",
+      "replayed": 287,
+      "matched": 102,
+      "percent": 35.5,
+      "still_open_today_percent": 56.8
+    },
+    {
+      "service_name": "Unsatisfactory Living Conditions",
+      "replayed": 282,
+      "matched": 32,
+      "percent": 11.3,
+      "still_open_today_percent": 13.8
+    },
+    {
+      "service_name": "Wild Animal Issue",
+      "replayed": 236,
+      "matched": 18,
+      "percent": 7.6,
+      "still_open_today_percent": 7.3
+    },
+    {
+      "service_name": "Park Groundskeeping",
+      "replayed": 233,
+      "matched": 46,
+      "percent": 19.7,
+      "still_open_today_percent": 24.9
+    }
+  ],
+  "caveats": [
+    "Boston leaves most Illegal Parking requests marked open (see still_open_today_percent), so almost any new one near an earlier one matches. That one service drives the overall rate; read the groups.",
+    "A match means \"an open request of the same type existed nearby\", not that a human confirmed it was the same problem.",
+    "Boston records many requests at an address point or intersection, so two different problems at one address (two cars parked illegally on different days) count as a match.",
+    "Whether an earlier request was open at the time is inferred from its current status and last-updated time; a request closed and later edited looks open for longer than it was.",
+    "The window means requests filed up to that many days earlier; requests older than the lookback period are not seen."
+  ],
+  "data": {
+    "days_fetched": 60,
+    "days_downloaded_this_run": 0,
+    "days_read_from_local_cache": 60,
+    "note": "Requests are downloaded once per day of data at a few requests a minute and cached under .citydesk/replay/."
+  },
+  "run_seconds": 1
+}

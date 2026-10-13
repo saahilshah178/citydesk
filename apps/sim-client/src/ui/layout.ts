@@ -8,5 +8,7 @@ export const DEVICE_HEIGHT = SCREEN_HEIGHT + BEZEL * 2;
 
 /** The area a card (MCP App view) is given. Passed to the view as its container dimensions. */
 export const CARD_WIDTH = 1216;
-export const CARD_MAX_HEIGHT = 520;
+// Screen height 800 minus the top bar (64), the captions beside a card (112) and the status row (46),
+// less a little breathing room. Cards authored at 768x480 are shown at 572 / 480 = 1.19x.
+export const CARD_MAX_HEIGHT = 572;
 export const CARD_MIN_HEIGHT = 120;

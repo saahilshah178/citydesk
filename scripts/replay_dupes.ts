@@ -55,6 +55,7 @@ const fetchStart = replayStart - windowDays * DAY_MS;
 async function loadDay(dayStart: number): Promise<ServiceRequest[]> {
   const file = resolve(cacheDir, `${ymd(dayStart)}.json`);
   if (!values.refresh && existsSync(file)) return JSON.parse(readFileSync(file, 'utf8')) as ServiceRequest[];
+  daysDownloaded++;
   let rows: ServiceRequest[] | undefined;
   for (let attempt = 1; rows === undefined; attempt++) {
     try {
@@ -86,6 +87,7 @@ async function loadDay(dayStart: number): Promise<ServiceRequest[]> {
 }
 
 const started = Date.now();
+let daysDownloaded = 0;
 const all: ServiceRequest[] = [];
 const totalDays = (endDay - fetchStart) / DAY_MS;
 for (let day = fetchStart, i = 1; day < endDay; day += DAY_MS, i++) {
@@ -167,6 +169,48 @@ function replay(radius: number, window: number): { replayed: number; matched: nu
 
 const pct = (n: number, d: number): number => (d === 0 ? 0 : Math.round((n / d) * 1000) / 10);
 const main = replay(radiusM, windowDays);
+
+/** Share of each service's requests (whole fetched period) that the city still lists as open today. */
+const stillOpen = new Map<string, number>();
+for (const [code, list] of byService) {
+  stillOpen.set(code, pct(list.filter((x) => x.r.status === 'open').length, list.length));
+}
+
+/**
+ * Defects in fixed things (a pothole, a dead streetlight, a broken sidewalk slab): a second report
+ * near an open one is most likely the same problem. Listed by name so the group is easy to audit;
+ * requests for something new (a new sign, a new crosswalk) are left out.
+ */
+const FIXED_INFRASTRUCTURE = new Set([
+  'Pothole',
+  'Sidewalk Repair',
+  'Street Light Outage',
+  'Street Light Other',
+  'Street Light Electrical Safety',
+  'Street Light Knockdown',
+  'Park Light Outage',
+  'Traffic Signal Request',
+  'Traffic Signal Knockdown',
+  'Missing / Knocked Down Sign',
+  'Missing Sign',
+  'Damaged Sign',
+  'Damaged/Faded Sign',
+  'Sign Knockdown',
+  'Crosswalk Maintenance',
+  'Road Marking Maintenance',
+  'Lane Divider',
+  'Illegal Graffiti',
+  'Fallen Tree or Branches',
+  'Broken Park Equipment',
+  'Broken Public Waste Receptacle',
+]);
+
+function group(label: string, include: (name: string) => boolean): { label: string; services: string[]; replayed: number; matched: number; percent: number } {
+  const members = [...main.byService.values()].filter((sv) => include(sv.name));
+  const replayed = members.reduce((a, sv) => a + sv.replayed, 0);
+  const matched = members.reduce((a, sv) => a + sv.matched, 0);
+  return { label, services: members.map((sv) => sv.name).sort(), replayed, matched, percent: pct(matched, replayed) };
+}
 const inReplay = requests.filter((r) => Date.parse(r.requested_datetime) >= replayStart);
 const located = inReplay.filter((r) => r.service_code && r.lat !== undefined && r.long !== undefined);
 
@@ -196,18 +240,36 @@ const result = {
       return { window_days: window, matched: r.matched, percent: pct(r.matched, r.replayed) };
     }),
   },
-  by_service: [...main.byService.values()]
-    .filter((s) => s.replayed >= 20)
-    .sort((a, b) => b.replayed - a.replayed)
+  groups: [
+    group('Fixed infrastructure (potholes, streetlights, sidewalks, signals, signs, graffiti, fallen trees)', (name) => FIXED_INFRASTRUCTURE.has(name)),
+    group('Everything except Illegal Parking', (name) => name !== 'Illegal Parking'),
+    group('Illegal Parking only', (name) => name === 'Illegal Parking'),
+  ],
+  by_service: [...main.byService.entries()]
+    .filter(([, s]) => s.replayed >= 20)
+    .sort((a, b) => b[1].replayed - a[1].replayed)
     .slice(0, 25)
-    .map((s) => ({ service_name: s.name, replayed: s.replayed, matched: s.matched, percent: pct(s.matched, s.replayed) })),
+    .map(([code, s]) => ({
+      service_name: s.name,
+      replayed: s.replayed,
+      matched: s.matched,
+      percent: pct(s.matched, s.replayed),
+      still_open_today_percent: stillOpen.get(code) ?? 0,
+    })),
   caveats: [
+    'Boston leaves most Illegal Parking requests marked open (see still_open_today_percent), so almost any new one near an earlier one matches. That one service drives the overall rate; read the groups.',
     'A match means "an open request of the same type existed nearby", not that a human confirmed it was the same problem.',
     'Boston records many requests at an address point or intersection, so two different problems at one address (two cars parked illegally on different days) count as a match.',
     'Whether an earlier request was open at the time is inferred from its current status and last-updated time; a request closed and later edited looks open for longer than it was.',
     'The window means requests filed up to that many days earlier; requests older than the lookback period are not seen.',
   ],
-  runtime_seconds: Math.round((Date.now() - started) / 1000),
+  data: {
+    days_fetched: totalDays,
+    days_downloaded_this_run: daysDownloaded,
+    days_read_from_local_cache: totalDays - daysDownloaded,
+    note: 'Requests are downloaded once per day of data at a few requests a minute and cached under .citydesk/replay/.',
+  },
+  run_seconds: Math.round((Date.now() - started) / 1000),
 };
 
 mkdirSync(resolve(root, 'results'), { recursive: true });

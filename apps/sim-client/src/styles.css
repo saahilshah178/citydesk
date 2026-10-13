@@ -388,8 +388,9 @@ button:disabled {
 
 /* Beside a card the captions keep a fixed height, so the card does not move as the text changes. */
 .captions[data-view='card'] {
-  height: 162px;
-  padding-top: 10px;
+  height: 112px;
+  padding-top: 8px;
+  gap: 4px;
 }
 
 .captions[data-view='card'] .captions__user {
@@ -402,11 +403,11 @@ button:disabled {
 .captions[data-view='card'] .captions__assistant {
   display: -webkit-box;
   overflow: hidden;
-  font-size: 27px;
+  font-size: 24px;
   line-height: 1.28;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 /* With no card the conversation is the screen. */
