@@ -1,7 +1,7 @@
 {
-  "ranAt": "2026-10-13T06:53:01.743Z",
+  "ranAt": "2026-10-13T08:17:30.582Z",
   "node": "v26.5.1",
-  "passed": 4,
+  "passed": 6,
   "degraded": 1,
   "failed": 1,
   "results": [
@@ -12,27 +12,33 @@
       "data": {
         "count": 6
       },
-      "ms": 303
+      "ms": 244
     },
     {
       "name": "boston.recent_requests",
       "status": "pass",
-      "detail": "50 requests, newest 2026-10-13T05:54:01Z",
+      "detail": "50 requests, newest 2026-10-13T06:58:00Z",
       "data": {
         "count": 50,
-        "newest": "2026-10-13T05:54:01Z"
+        "newest": "2026-10-13T06:58:00Z"
       },
-      "ms": 441
+      "ms": 445
+    },
+    {
+      "name": "boston.public_hostname",
+      "status": "pass",
+      "detail": "https://311.boston.gov/open311/v2 answered with 6 services",
+      "ms": 229
     },
     {
       "name": "boston.test_endpoint",
       "status": "degraded",
-      "detail": "discovery lists https://boston2-test.spotmobile.net/open311/v2 but it is unreachable: fetch failed (ENOTFOUND). Writes use the SeeClickFix sandbox instead.",
+      "detail": "discovery lists https://boston2-test.spotmobile.net/open311/v2 but it is unreachable: fetch failed (ENOTFOUND). New reports are filed in CityDesk's built-in Open311 sandbox instead.",
       "unblock": "Nothing you can fix locally. Boston (or its vendor) would have to restore the test host named in its discovery file.",
       "data": {
         "url": "https://boston2-test.spotmobile.net/open311/v2"
       },
-      "ms": 114
+      "ms": 113
     },
     {
       "name": "seeclickfix.sandbox_read",
@@ -42,7 +48,13 @@
         "services": 118,
         "requests": 20
       },
-      "ms": 3258
+      "ms": 2978
+    },
+    {
+      "name": "sandbox.write_roundtrip",
+      "status": "pass",
+      "detail": "filed and read back SB-81401 in the built-in sandbox; a production write was refused by the guard",
+      "ms": 3
     },
     {
       "name": "boston.trash_schedule",
@@ -52,7 +64,7 @@
         "trashday": "MF",
         "recollect": "MF"
       },
-      "ms": 398
+      "ms": 274
     },
     {
       "name": "aws.bedrock_converse",

@@ -1,0 +1,55 @@
+{
+  "ranAt": "2026-10-13T08:17:49.723Z",
+  "node": "v26.5.1",
+  "network_calls": "none: every upstream is a recorded fixture or a fake",
+  "suites": [
+    {
+      "package": "open311-mcp",
+      "covers": "Open311 client, write guard, sandbox, Streamable HTTP conformance",
+      "files": 5,
+      "tests": 60,
+      "passed": 60,
+      "failed": 0,
+      "exit_code": 0,
+      "seconds": 0.4
+    },
+    {
+      "package": "@citydesk/server",
+      "covers": "the six tools, duplicate detection, geocoding, stores, cards",
+      "files": 10,
+      "tests": 153,
+      "passed": 153,
+      "failed": 0,
+      "exit_code": 0,
+      "seconds": 0.5
+    },
+    {
+      "package": "@citydesk/sim-client",
+      "covers": "assistant loop, MCP Apps host, backend limits, scenario runner",
+      "files": 10,
+      "tests": 135,
+      "passed": 135,
+      "failed": 0,
+      "exit_code": 0,
+      "seconds": 0.4
+    },
+    {
+      "package": "@citydesk/infra",
+      "covers": "CDK template assertions and IAM scope",
+      "files": 4,
+      "tests": 49,
+      "passed": 49,
+      "failed": 0,
+      "exit_code": 0,
+      "seconds": 1.6
+    }
+  ],
+  "total": {
+    "tests": 397,
+    "passed": 397,
+    "failed": 0,
+    "files": 29
+  },
+  "pass": true,
+  "seconds": 3
+}

@@ -9,7 +9,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
-import { BOSTON as BOSTON_CITY } from 'open311-mcp';
+import { BOSTON as BOSTON_CITY, Open311Client, createSandbox, sandboxEndpoint, type CityConfig } from 'open311-mcp';
 import { loadEnv, USER_AGENT } from './lib/env.ts';
 
 loadEnv();
@@ -123,7 +123,7 @@ const checks: Array<() => Promise<CheckResult>> = [
         const e = err as Error & { cause?: { code?: string } };
         return {
           status: 'degraded',
-          detail: `discovery lists ${test.url} but it is unreachable: ${e.message}${e.cause?.code ? ` (${e.cause.code})` : ''}. Writes use the SeeClickFix sandbox instead.`,
+          detail: `discovery lists ${test.url} but it is unreachable: ${e.message}${e.cause?.code ? ` (${e.cause.code})` : ''}. New reports are filed in CityDesk's built-in Open311 sandbox instead.`,
           unblock:
             'Nothing you can fix locally. Boston (or its vendor) would have to restore the test host named in its discovery file.',
           data: { url: test.url },
@@ -141,6 +141,33 @@ const checks: Array<() => Promise<CheckResult>> = [
         status: 'pass',
         detail: `${services.length} sandbox services, ${reqs.length} recent sandbox requests near New Haven`,
         data: { services: services.length, requests: reqs.length },
+      };
+    }),
+  () =>
+    check('sandbox.write_roundtrip', async () => {
+      // The write path CityDesk actually uses: the built-in GeoReport v2 sandbox, through the real client.
+      const sandbox = createSandbox({ name: 'CityDesk sandbox' });
+      const city: CityConfig = { ...BOSTON_CITY, test: sandboxEndpoint(sandbox, 'citydesk-sandbox') };
+      const client = new Open311Client(city, { env: {} });
+      const created = await client.createRequest({
+        serviceCode: 'sandbox-pothole',
+        lat: 42.3493,
+        long: -71.0782,
+        addressString: '700 Boylston St, Boston, MA 02116',
+        description: 'Smoke test',
+      });
+      const read = await client.getRequest(created.service_request_id ?? '', 'test');
+      if (!read || read.status !== 'open') throw new Error('the sandbox did not return the request it accepted');
+      let productionBlocked = false;
+      try {
+        await client.createRequest({ serviceCode: 'x', lat: 1, long: 1 }, 'production');
+      } catch (err) {
+        productionBlocked = (err as { code?: string }).code === 'write_blocked';
+      }
+      if (!productionBlocked) throw new Error('a production write was not blocked');
+      return {
+        status: 'pass',
+        detail: `filed and read back ${read.service_request_id} in the built-in sandbox; a production write was refused by the guard`,
       };
     }),
   () =>

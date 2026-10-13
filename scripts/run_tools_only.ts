@@ -116,6 +116,12 @@ const mine = await call<IssueResult>(client, 2, 'Status check in a new session',
 const remembered = new Set((mine.requests ?? []).map((r) => r.request_id));
 const memoryHeld = remembered.has(existing) && filedId !== undefined && remembered.has(filedId);
 const filedNow = (mine.requests ?? []).find((r) => r.request_id === filedId);
+// By now the server's two-minute cache of Boston's open requests has expired, so this duplicate
+// check pays for a fresh download: the slowest a tool call normally gets.
+await call<IssueResult>(client, 2, 'Duplicate check with a cold cache (fresh download from Boston)', 'find_nearby_reports', {
+  issue_type: 'pothole',
+  location: places.pothole.location,
+}, 'nearby');
 const sched = await call<ScheduleResult>(client, 2, 'Trash day for an address', 'collection_schedule', { address: places.trash.address }, 'schedule');
 await client.close();
 
@@ -138,6 +144,7 @@ const record = {
     trash_weekdays: sched.schedule?.trash.weekdays ?? [],
   },
   tool_latency_ms: {
+    note: 'Calls that reach Boston take a few hundred milliseconds; a duplicate check right after the place finder ran reuses a cached list; the cold-cache step shows the uncached cost.',
     min: durations[0],
     median: durations[Math.floor(durations.length / 2)],
     max: durations.at(-1),

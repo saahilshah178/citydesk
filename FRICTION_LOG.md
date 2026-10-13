@@ -248,3 +248,109 @@ time), **low** (papercut).
   at a lower rate.
 - **Suggestion:** Exempt `/open311/` from the browser challenge or answer API clients with 429 and
   `Retry-After`, and say in the developer docs which hostname API clients should use.
+
+## 18. MCP Apps (ext-apps): `AppBridge` forwards every tool call a card makes, whatever the tool's visibility
+
+- **Task:** Let the cards call the app-only `static_map` tool, and nothing the assistant alone should
+  call.
+- **Steps taken:** Read `connect()` in `@modelcontextprotocol/ext-apps/app-bridge` 2.0.3. Built a
+  card that calls a tool declared `visibility: ["model"]` and ran it in a host that passes its MCP
+  client to the bridge, as `basic-host` does.
+- **Expected vs actual:** The MCP Apps spec says the host must reject such calls. Actual: with a
+  client passed in, the bridge forwards any `tools/call` to the server unchecked.
+- **Severity:** high (a card could file or follow requests on the resident's behalf)
+- **Workaround:** `new AppBridge(null, ...)` with our own `oncalltool` handler that checks
+  visibility before forwarding (`apps/sim-client/src/apps/host.ts`).
+- **Suggestion:** Enforce tool visibility inside the bridge, since every host needs it.
+
+## 19. MCP Apps: `basic-host` cannot be deployed as static files on one origin
+
+- **Task:** Serve the client, including the card sandbox, from one CloudFront origin.
+- **Steps taken:** Ported `examples/basic-host` at v2.0.3.
+- **Expected vs actual:** Expected a pattern that deploys. Actual: the card's CSP is an HTTP header
+  computed by an Express server from a `?csp=` query string, the sandbox page lives on a second port,
+  and the embedder check is hard-coded to localhost.
+- **Severity:** high
+- **Workaround:** A sandbox page on the same host loaded in an iframe without `allow-same-origin`
+  (the browser gives it an opaque origin), a `<meta>` CSP built per card, and a configurable
+  embedder allowlist (`apps/sim-client/src/sandbox/`, `src/apps/csp.ts`). This departs from the
+  spec's wording that the sandbox "MUST have allow-same-origin"; it works with `App` and `AppBridge`
+  because the transport posts with `"*"`.
+- **Suggestion:** Document a static, single-origin host recipe, and let the spec permit opaque-origin
+  sandboxes.
+
+## 20. Browser: a sandboxed, opaque-origin page cannot load its own host's module script
+
+- **Task:** Build the sandbox proxy page for entry 19.
+- **Steps taken:** Loaded the Vite-built page inside `<iframe sandbox="allow-scripts">`.
+- **Expected vs actual:** Expected the page's own `/assets/*.js` to load. Actual: Chrome blocked it
+  ("from origin 'null' ... by CORS policy"), because module scripts are fetched with CORS and an
+  opaque origin matches nothing.
+- **Severity:** medium
+- **Workaround:** Bundle the proxy with esbuild and inline it into `sandbox.html`.
+- **Suggestion:** Call this out in the ext-apps host docs next to the sandbox section.
+
+## 21. MCP Apps: the `App` SDK pulls 450 kB of zod into every card
+
+- **Task:** Bundle each card as one self-contained HTML file.
+- **Steps taken:** A nine-line probe importing `App`, bundled with `esbuild --bundle --minify`.
+- **Expected vs actual:** Expected tens of kilobytes for a postMessage client. Actual: 587 kB, of
+  which zod was 454 kB and its locale files 264 kB.
+- **Severity:** medium
+- **Workaround:** An esbuild plugin stubs every `zod/v4/locales/*.js` except English, which brings a
+  card's script to about 353 kB (`apps/citydesk/cards/build.ts`).
+- **Suggestion:** Import zod so locales tree-shake, or ship a slim prebundled `App`.
+
+## 22. MCP Apps: `basic-host` calls a tool twice with `?call=true`
+
+- **Task:** Auto-run a tool on page load for repeatable screenshots.
+- **Steps taken:** `npm start` in `examples/basic-host`, opened `/?server=...&tool=...&call=true`,
+  read the console.
+- **Expected vs actual:** Expected one call. Actual: `[HOST] Calling tool` is logged twice per load
+  with one panel rendered. The "Call Tool" button logs it once.
+- **Severity:** medium (harmless for fixtures, but it would file a real report twice)
+- **Workaround:** Use the button for anything with side effects.
+- **Suggestion:** Guard the auto-call so it runs once.
+
+## 23. MCP Apps: `basic-host` handles `ui/message` but does not advertise it, and has no fixed-size surface
+
+- **Task:** Send a tapped clarification option back as a user message, and check the cards at an Echo
+  Show sized surface.
+- **Steps taken:** Read `examples/basic-host/src/implementation.ts`; called `app.sendMessage`; looked
+  for a way to set the container size or display mode.
+- **Expected vs actual:** Host capabilities list `openLinks`, `serverTools`, `serverResources` and
+  `updateModelContext` but not `message`, yet the message arrives and is shown. The host only ever
+  sends `maxHeight: 6000` and never a fixed container, so a card for a fixed screen cannot be
+  exercised in the reference host.
+- **Severity:** medium
+- **Workaround:** The cards always attempt `sendMessage` and fall back to "say it"; sizes were tested
+  by making the iframe exactly 768 or 1280 pixels wide.
+- **Suggestion:** Declare `message` in basic-host, and add size presets and a display-mode toggle.
+
+## 24. MCP Apps docs and helpers: small mismatches with the 2.0.3 package
+
+- **Task:** Receive the tool result in a card and declare a photo CSP on its resource.
+- **Steps taken:** Followed `docs/quickstart.md` at v2.0.3, then read the type declarations and the
+  `registerAppResource` source.
+- **Expected vs actual:** The quickstart uses `app.ontoolresult = ...`, which the 2.0.3 typings mark
+  deprecated in favour of `addEventListener`. `registerAppResource` copies `_meta.ui` into the
+  resource listing but not onto the content item hosts read first, so the CSP has to be repeated in
+  the read callback. `require.resolve('@modelcontextprotocol/ext-apps/package.json')` fails because
+  the path is not exported.
+- **Severity:** low
+- **Workaround:** `addEventListener('toolresult', ...)`; `_meta.ui` set in both places
+  (`apps/citydesk/src/cards/index.ts`).
+- **Suggestion:** Update the quickstart, mirror `_meta.ui` onto content items, and export a version
+  constant.
+
+## 25. MCP client SDK: a stateless server's allowed 405 shows up as a console error on every connect
+
+- **Task:** Connect a browser MCP client to a stateless Streamable HTTP server.
+- **Steps taken:** Connected `StreamableHTTPClientTransport` to the CityDesk server and to a
+  `createMcpHandler` server; read the browser console.
+- **Expected vs actual:** The client's standalone GET for a server-to-client stream gets the 405 the
+  spec allows, and Chrome logs "Failed to load resource: 405" each time. Nothing is wrong, but it
+  looks like a failure in a demo.
+- **Severity:** low
+- **Workaround:** None; the developer drawer shows the connection as healthy.
+- **Suggestion:** An option to skip the GET when the server has said it is stateless.

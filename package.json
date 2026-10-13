@@ -22,7 +22,11 @@
     "demo:scenario": "tsx scripts/make_scenario.ts",
     "demo:conversation": "tsx scripts/make_scenario.ts && pnpm --filter @citydesk/sim-client conversation --scenario results/conversation.scenario.json --out results/conversation.json",
     "check:bundles": "node scripts/check_bundles.mjs",
-    "demo:tools": "tsx scripts/run_tools_only.ts"
+    "demo:tools": "tsx scripts/run_tools_only.ts",
+    "test:record": "tsx scripts/run_tests.ts",
+    "dev": "node scripts/dev.mjs",
+    "friction:table": "tsx scripts/friction_table.ts",
+    "check:claims": "tsx scripts/check_claims.ts"
   },
   "devDependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1149.0",

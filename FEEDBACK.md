@@ -45,9 +45,25 @@ Where something has not been exercised against the live service yet, this file s
 
 ## MCP Apps (`@modelcontextprotocol/ext-apps` 2.0.3)
 
-- **Used for:** The issue card and schedule card (`ui://` resources) and the app bridge in the web
-  client.
-- _Filled in at stages 4 and 5._
+- **Used for:** The issue card and schedule card (`ui://` resources built with the `App` class,
+  `apps/citydesk/cards/`), their registration on the server (`apps/citydesk/src/cards/index.ts`), and
+  the host side in the web client (`AppBridge`, `apps/sim-client/src/apps/host.ts`).
+- **Worked well:** The `App` handshake, `addEventListener('toolresult')` and auto-resize worked on
+  the first load, with no protocol debugging. `callServerTool` plus `visibility: ["app"]` is a clean
+  way to fetch card-private data: the map arrives as a `data:` image, so the card needs no connect
+  domains. The default zod configuration ran unchanged under a CSP without `unsafe-eval`. The example
+  servers published to npm (`server-debug`, `server-basic-vanillajs`) run with no repo build and
+  exercise almost every host feature. The JSDoc on `AppBridge` is good enough to build a host from.
+- **Needs work:** The bridge does not enforce tool visibility (entry 18). `basic-host` assumes two
+  servers and cannot be hosted statically (entry 19), calls twice on `?call=true` (entry 22), and has
+  no fixed-size surface or display-mode control (entry 23). Bundle weight: about 96% of each card is
+  the SDK and zod (entry 21). Host context cannot describe a fixed full-screen device such as an Echo
+  Show, so cards infer it from container dimensions.
+- **Onboarding:** A first card rendering in basic-host took under an hour. Running basic-host from the
+  tag took a nine-minute root `npm install` across every example, and the scripts call `bun`, which
+  the docs do not list as a prerequisite.
+- **Build with it again:** Yes. Cards that work in any MCP Apps host are the right abstraction for a
+  screen device; we would budget time for the host side.
 
 ## Amazon Bedrock
 
