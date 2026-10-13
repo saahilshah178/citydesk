@@ -112,6 +112,9 @@ export class CityDeskStack extends cdk.Stack {
       description: 'CityDesk MCP server (Streamable HTTP) for Open311 city services',
       entry: mcpEntry,
       timeout: cdk.Duration.seconds(20),
+      // The Boston address index built by `pnpm sync:addresses`. The handler loads it from beside
+      // the bundle and falls back to live lookups on data.boston.gov when it is not there.
+      copyFiles: [join(REPO_ROOT, '.citydesk', 'addresses.json.gz')],
       environment: {
         CITYDESK_STORE: 'dynamodb',
         CITYDESK_TABLE: this.table.tableName,
@@ -296,8 +299,16 @@ export class CityDeskStack extends cdk.Stack {
    */
   private nodeFunction(
     id: string,
-    options: { description: string; entry: string; timeout: cdk.Duration; environment: Record<string, string> },
+    options: {
+      description: string;
+      entry: string;
+      timeout: cdk.Duration;
+      environment: Record<string, string>;
+      /** Files copied next to the bundled handler. Paths that do not exist at synth time are skipped. */
+      copyFiles?: string[];
+    },
   ): nodejs.NodejsFunction {
+    const copyFiles = (options.copyFiles ?? []).filter((file) => existsSync(file));
     const logGroup = new logs.LogGroup(this, `${id}Logs`, {
       retention: logs.RetentionDays.TWO_WEEKS,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
@@ -344,6 +355,12 @@ export class CityDeskStack extends cdk.Stack {
         // infra/node_modules/.bin is on PATH. That is true under `pnpm exec cdk` and false when the
         // CDK CLI is started any other way, so the directory is added here for the bundling step.
         environment: { PATH: `${INFRA_BIN}${delimiter}${process.env.PATH ?? ''}` },
+        commandHooks: {
+          beforeInstall: () => [],
+          beforeBundling: () => [],
+          afterBundling: (_inputDir: string, outputDir: string) =>
+            copyFiles.map((file) => `cp ${JSON.stringify(file)} ${JSON.stringify(outputDir)}`),
+        },
       },
     });
   }

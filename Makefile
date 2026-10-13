@@ -32,7 +32,7 @@ help:
 	@echo "  make build     build every workspace package, including the web client"
 	@echo "  make test      run every workspace test suite"
 	@echo "  make synth     synthesize the CloudFormation template into infra/cdk.out (no AWS calls)"
-	@echo "  make deploy    create SSM secrets, bootstrap CDK if needed, deploy; outputs go to $(OUTPUTS)"
+	@echo "  make deploy    build the address index, create SSM secrets, bootstrap CDK if needed, deploy; outputs go to $(OUTPUTS)"
 	@echo "  make destroy   delete the stack and the SSM secrets created by make deploy"
 	@echo ""
 	@echo "synth and deploy need BEDROCK_MODEL_ID. deploy and destroy need AWS credentials."
@@ -63,7 +63,11 @@ synth: install check-model build
 	$(IN_INFRA) $(CDK) synth --quiet $(CDK_ARGS)
 	@echo "Template: infra/cdk.out/CityDesk.template.json"
 
-deploy: install check-model check-aws build
+# Builds the Boston address index that ships inside the MCP function (skipped when it already exists).
+.citydesk/addresses.json.gz:
+	pnpm sync:addresses
+
+deploy: install check-model check-aws build .citydesk/addresses.json.gz
 	$(IN_INFRA) $(TSX) scripts/ensure-params.ts
 	$(IN_INFRA) $(TSX) scripts/bootstrap.ts
 	@mkdir -p $(dir $(OUTPUTS))

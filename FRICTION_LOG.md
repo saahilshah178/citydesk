@@ -134,3 +134,98 @@ time), **low** (papercut).
   exact match first and fall back to full text, and report a retryable structured error on timeout.
 - **Suggestion:** Index `full_address` (or publish a case-insensitive lookup endpoint), since "find
   my address" is the main use of this dataset.
+
+## 10. AWS CDK: `NodejsFunction` cannot find esbuild in a pnpm workspace
+
+- **Task:** Bundle the two Lambda handlers during `cdk synth`, started from the Makefile.
+- **Steps taken:** Ran `node_modules/.bin/cdk synth` inside `infra/`. esbuild is a dev dependency of
+  `infra/`; the lockfile is at the repo root.
+- **Expected vs actual:** Expected CDK to use the esbuild it had already detected. Actual: it ran
+  `pnpm exec esbuild` from the lockfile directory, got `Command "esbuild" not found`, then
+  `FailedToBundleAsset`. The same synth passes under `pnpm exec cdk`, only because pnpm then puts
+  `infra/node_modules/.bin` on `PATH`.
+- **Severity:** high (it would have broken the first `make deploy`)
+- **Workaround:** `bundling.environment.PATH` prepends `infra/node_modules/.bin`
+  (`infra/lib/citydesk-stack.ts`), with a regression test that strips repo paths from `PATH`.
+- **Suggestion:** Run the esbuild binary CDK resolved instead of `<package manager> exec` from the
+  lockfile directory.
+
+## 11. AWS CDK: `cdk bootstrap aws://account/region` still synthesizes the app
+
+- **Task:** Bootstrap the account and Region only when needed, before the first deploy.
+- **Steps taken:** Ran `cdk bootstrap aws://<account>/<region>` inside `infra/` without
+  `BEDROCK_MODEL_ID` set, then again from an empty directory.
+- **Expected vs actual:** Expected no synthesis when the environment is given explicitly. Actual:
+  inside the project the app was synthesized and failed on our own missing setting; from a directory
+  with no `cdk.json` it went straight to the AWS calls.
+- **Severity:** medium
+- **Workaround:** `infra/scripts/bootstrap.ts` runs the CLI with the OS temp directory as its working
+  directory.
+- **Suggestion:** Skip synthesis when environments are passed explicitly, or say in the docs that
+  bootstrap runs the app.
+
+## 12. Amazon Bedrock: least-privilege IAM for an inference profile takes guesswork
+
+- **Task:** Scope `bedrock:InvokeModel` to the one model in `BEDROCK_MODEL_ID`, whether it is a
+  foundation model ID or a cross-Region inference profile ID.
+- **Steps taken:** Read the inference profile prerequisites, the global cross-Region inference page
+  and the supported profiles page.
+- **Expected vs actual:** Expected one resource ARN per model. Actual: a profile needs its own ARN
+  plus the foundation model ARN in every destination Region, plus a Region-less ARN for `global.`
+  profiles. The destination Regions come only from `GetInferenceProfile`, and the ID prefixes are not
+  listed anywhere as a grammar.
+- **Severity:** medium
+- **Workaround:** A wildcard Region on the model ARN, narrowed with a `bedrock:InferenceProfileArn`
+  condition (`infra/lib/bedrock.ts`).
+- **Suggestion:** Let the profile ARN alone authorize the call, or publish the ID grammar and a
+  managed policy snippet.
+
+## 13. Amazon Location Service: prices are hard to read without a real browser
+
+- **Task:** Work out what stored geocoding and static maps cost, to keep the deployment cheap.
+- **Steps taken:** Opened the pricing page in a headless browser and clicked the Places and Maps
+  tabs; read the developer guide's pricing pages.
+- **Expected vs actual:** Expected price tables. Actual: the tab panels rendered empty (only the free
+  tier table showed) and the developer guide links back without numbers. The Price List bulk JSON had
+  the prices. It is also unclear whether "Stored" geocoding requests count toward the free tier.
+- **Severity:** medium
+- **Workaround:** Read
+  `https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonLocationService/current/us-east-1/index.json`.
+- **Suggestion:** Put the prices in the page HTML, and state per request type whether the free tier
+  applies.
+
+## 14. AWS Systems Manager: unclear whether reading a SecureString with the AWS managed key needs `kms:Decrypt`
+
+- **Task:** Let the Lambda functions read `/citydesk/*` SecureString parameters and nothing else.
+- **Steps taken:** Read the KMS documentation page on Parameter Store.
+- **Expected vs actual:** Expected an explicit statement for `alias/aws/ssm`. Actual: one sentence says
+  the user needs `kms:Decrypt`, another says you cannot set access policies for the default key, and
+  every example uses a customer managed key.
+- **Severity:** low
+- **Workaround:** An explicit `kms:Decrypt` statement conditioned on `kms:ViaService` and the
+  parameter's encryption context.
+- **Suggestion:** Add an `aws/ssm` example to that page.
+
+## 15. AWS Lambda: the runtimes table lists a preview runtime next to GA ones
+
+- **Task:** Pick the newest Node.js runtime for the functions.
+- **Steps taken:** Read the Lambda runtimes page and the `Runtime` constants in `aws-cdk-lib` 2.273.0.
+- **Expected vs actual:** Expected one answer. Actual: the supported-runtimes table lists `nodejs26.x`
+  beside generally available runtimes, with a separate note that it is a public preview, while CDK
+  stops at `NODEJS_24_X`.
+- **Severity:** low
+- **Workaround:** `nodejs24.x`.
+- **Suggestion:** Mark preview status in the table row itself.
+
+## 16. AWS Free Tier: no single list of what is always free
+
+- **Task:** Classify each service CityDesk uses as always free, trial, or pay per use for
+  `docs/aws.md`.
+- **Steps taken:** Read the Free Tier docs, the FAQ, aws.amazon.com/free and each service's pricing
+  page.
+- **Expected vs actual:** Expected a list. Actual: the "over 30 always free services" are not named in
+  readable text; Polly's page still says "first 12 months"; CloudFront's always-free allowance sits on
+  a separate page behind the flat-rate plans.
+- **Severity:** medium
+- **Workaround:** `docs/aws.md` marks what was confirmed and what was not.
+- **Suggestion:** One line on every pricing page: always free, trial, or credits only.
