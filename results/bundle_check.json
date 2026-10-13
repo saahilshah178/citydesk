@@ -1,15 +1,15 @@
 {
-  "ranAt": "2026-10-13T08:14:15.850Z",
+  "ranAt": "2026-10-13T08:25:05.690Z",
   "node": "v26.5.1",
   "what_this_is": "The bundles from infra/cdk.out loaded locally and sent Function URL events. No AWS calls.",
   "bundles": {
     "mcp": {
       "bytes": 3490243,
-      "cold_load_ms": 190
+      "cold_load_ms": 216
     },
     "client_api": {
       "bytes": 1968475,
-      "cold_load_ms": 31
+      "cold_load_ms": 29
     },
     "address_index_bytes": 2292280
   },
@@ -17,7 +17,7 @@
     {
       "name": "MCP bundle loads",
       "pass": true,
-      "detail": "3.5 MB, cold load 190 ms"
+      "detail": "3.5 MB, cold load 216 ms"
     },
     {
       "name": "address index is packaged",
@@ -27,7 +27,7 @@
     {
       "name": "initialize",
       "pass": true,
-      "detail": "HTTP 200, protocol 2025-11-25, citydesk 0.1.0, 16 ms"
+      "detail": "HTTP 200, protocol 2025-11-25, citydesk 0.1.0, 21 ms"
     },
     {
       "name": "tools/list",
@@ -37,7 +37,12 @@
     {
       "name": "tools/call collection_schedule",
       "pass": true,
-      "detail": "\"At 700 Boylston St, trash and recycling are both picked up on Mondays and Thursdays. The next pickup is this Thursday, October 15th.\" in 35 ms"
+      "detail": "\"At 700 Boylston St, trash and recycling are both picked up on Mondays and Thursdays. The next pickup is this Thursday, October 15th.\" in 32 ms"
+    },
+    {
+      "name": "tools/call my_requests",
+      "pass": true,
+      "detail": "\"You have not filed or followed any requests yet. Tell me abo...\" in 1 ms"
     },
     {
       "name": "resources/read issue card",
@@ -62,7 +67,7 @@
     {
       "name": "client API bundle loads",
       "pass": true,
-      "detail": "2.0 MB, cold load 31 ms"
+      "detail": "2.0 MB, cold load 29 ms"
     },
     {
       "name": "GET /api/config",

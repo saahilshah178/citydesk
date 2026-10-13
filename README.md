@@ -234,7 +234,7 @@ Boston's open list afresh, took 1,267 ms.
 | Cards in the ext-apps `basic-host` | Both cards, 17 states, at 768x480 and 1280x800 | [`results/cards/`](results/cards) |
 | Cards in our client, live data | Issue card and schedule card | [`results/integration/`](results/integration) |
 | Boston address index | 139,050 buildings from 399,489 address rows; lookups under 1 ms | [`results/address_index.json`](results/address_index.json) |
-| Lambda bundles loaded locally | 11 of 11 checks; MCP bundle 3.5 MB, cold load 190 ms | [`results/bundle_check.json`](results/bundle_check.json) |
+| Lambda bundles loaded locally | 12 of 12 checks; MCP bundle 3.5 MB, cold load under 0.3 s | [`results/bundle_check.json`](results/bundle_check.json) |
 | Smoke test | 6 pass, 1 degraded (Boston's test endpoint), 1 fail (Bedrock: no credentials on this machine) | [`results/smoke.json`](results/smoke.json) |
 
 ## Limitations

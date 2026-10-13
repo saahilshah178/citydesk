@@ -41,7 +41,7 @@ const suite = (name: string): number => tests.suites.find((s) => s.package === n
 const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 
 type Doc = 'README.md' | 'docs/submission.md';
-const claims: Array<{ what: string; text: string; docs: Doc[] }> = [
+const claims: Array<{ what: string; text: string; docs: Doc[]; holds?: boolean }> = [
   { what: 'requests replayed', text: n(dupes.requests.replayed_with_coordinates_and_service), docs: ['README.md', 'docs/submission.md'] },
   { what: 'replay start date', text: dupes.replay_period.from, docs: ['README.md', 'docs/submission.md'] },
   { what: 'replay end date', text: dupes.replay_period.to, docs: ['README.md', 'docs/submission.md'] },
@@ -66,7 +66,8 @@ const claims: Array<{ what: string; text: string; docs: Doc[] }> = [
   { what: 'address rows', text: n(index.source_rows), docs: ['README.md'] },
   { what: 'bundle checks', text: `${bundles.checks.filter((c) => c.pass).length} of ${bundles.checks.length} checks`, docs: ['README.md'] },
   { what: 'MCP bundle size', text: `${(bundles.bundles.mcp.bytes / 1e6).toFixed(1)} MB`, docs: ['README.md'] },
-  { what: 'MCP bundle cold load', text: `cold load ${bundles.bundles.mcp.cold_load_ms} ms`, docs: ['README.md'] },
+  // Load time varies run to run, so the README quotes a bound and the recorded value must respect it.
+  { what: 'MCP bundle cold load', text: 'cold load under 0.3 s', docs: ['README.md'], holds: bundles.bundles.mcp.cold_load_ms < 300 },
   { what: 'smoke summary', text: `${smoke.passed} pass, ${smoke.degraded} degraded`, docs: ['README.md'] },
   { what: 'tool calls in the tools-only run', text: `${words[toolsOnly.steps.length]![0]!.toUpperCase()}${words[toolsOnly.steps.length]!.slice(1)} tool calls`, docs: ['README.md'] },
   { what: 'cold duplicate check', text: `${n(cold.duration_ms)} ms`, docs: ['README.md'] },
@@ -82,6 +83,7 @@ if (tests.total.passed !== tests.total.tests) failures.push('results/tests.json 
 if (!toolsOnly.pass) failures.push('results/conversation.tools-only.json records a failed run.');
 const docs = new Map<Doc, string>();
 for (const claim of claims) {
+  if (claim.holds === false) failures.push(`${claim.what}: the recorded value no longer supports "${claim.text}".`);
   for (const doc of claim.docs) {
     if (!docs.has(doc)) docs.set(doc, readFileSync(resolve(root, doc), 'utf8'));
     if (!docs.get(doc)!.includes(claim.text)) failures.push(`${doc}: ${claim.what} should read "${claim.text}" (from results/).`);
