@@ -11,8 +11,21 @@ Friction with a reproducible story lives in [FRICTION_LOG.md](FRICTION_LOG.md).
   `requireBearerAuth`, `WebStandardStreamableHTTPServerTransport`) that compose into a plain
   `fetch(Request)` handler, which is what a Lambda Function URL needs. The type declarations carry
   enough prose to work from without the website.
+- **Worked:** `createMcpHandler` plus `isLegacyRequest` let one endpoint serve 2025-11-25 clients
+  and 2026-07-28 clients from a single server factory; our conformance suite connects the official
+  client in both modes. Declaring `outputSchema` with zod gave typed, validated results for free.
 - **Did not work:** See friction entry 6: two package lines, a confusing version constant, and no
-  JSON option on the stateless legacy fallback.
+  JSON option on the stateless legacy fallback. A warning line is printed to the console on every
+  process start when `responseMode: 'json'` is used, with no way to silence it.
+
+## MCP Inspector (`@modelcontextprotocol/inspector` 2.10.1)
+
+- **Used for:** The manual pass over both servers (`results/inspector/`).
+- **Worked:** CLI mode is scriptable: `--method tools/call --tool-arg key=value` with JSON values for
+  nested arguments, custom headers for the bearer token, and clean JSON on stdout.
+- **Did not work:** It validates error results against `outputSchema` and reports only the schema
+  failure (friction entry 8). With a wrong token it asks for interactive OAuth instead of showing
+  the 401.
 
 ## MCP Apps (`@modelcontextprotocol/ext-apps` 2.0.3)
 

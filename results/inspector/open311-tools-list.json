@@ -1,0 +1,323 @@
+{
+  "tools": [
+    {
+      "name": "list_cities",
+      "title": "List cities",
+      "description": "Call this first, when you do not yet know which cities this server covers. It tells you which city keys to pass to the other tools and where new requests can be created. Returns each city's key, name, time zone, bounding box, and its endpoints with a flag saying whether each accepts writes.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "$schema": "https://json-schema.org/draft/2020-12/schema"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "list_services",
+      "title": "List request types",
+      "description": "Call this when you need the request types (services) a city accepts, for example to find the service_code for a pothole before searching or creating a request. Returns each service's code, name, group, and whether it has extra questions (metadata) that get_service_definition will list.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "city": {
+            "type": "string",
+            "enum": [
+              "boston",
+              "new-haven",
+              "sandbox-city"
+            ],
+            "description": "City key. One of: boston, new-haven, sandbox-city."
+          },
+          "endpoint": {
+            "default": "production",
+            "description": "Which endpoint to read: the live \"production\" system or the \"test\" sandbox.",
+            "type": "string",
+            "enum": [
+              "production",
+              "test"
+            ]
+          }
+        },
+        "required": [
+          "city"
+        ],
+        "$schema": "https://json-schema.org/draft/2020-12/schema"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "get_service_definition",
+      "title": "Get the questions for a request type",
+      "description": "Call this before create_request when list_services shows metadata: true for the service, to learn which extra answers are required. Returns the attributes in order, each with its code, question text, datatype, whether it is required, and the allowed values for list types.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "city": {
+            "type": "string",
+            "enum": [
+              "boston",
+              "new-haven",
+              "sandbox-city"
+            ],
+            "description": "City key. One of: boston, new-haven, sandbox-city."
+          },
+          "service_code": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The service_code from list_services."
+          },
+          "endpoint": {
+            "default": "production",
+            "description": "Which endpoint to read: the live \"production\" system or the \"test\" sandbox.",
+            "type": "string",
+            "enum": [
+              "production",
+              "test"
+            ]
+          }
+        },
+        "required": [
+          "city",
+          "service_code"
+        ],
+        "$schema": "https://json-schema.org/draft/2020-12/schema"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "search_requests",
+      "title": "Search service requests",
+      "description": "Call this to find existing service requests, for example open potholes near a point or everything filed last week. Use it to check for duplicates before creating a request. Filters combine. Returns matching requests, newest first (nearest first when \"near\" is given), each with its ID, status, service, address, coordinates, and filed and updated dates.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "city": {
+            "type": "string",
+            "enum": [
+              "boston",
+              "new-haven",
+              "sandbox-city"
+            ],
+            "description": "City key. One of: boston, new-haven, sandbox-city."
+          },
+          "service_code": {
+            "description": "Only requests of this type.",
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "description": "Only requests in this state.",
+            "type": "string",
+            "enum": [
+              "open",
+              "closed"
+            ]
+          },
+          "start_date": {
+            "description": "Earliest filed time, ISO 8601, e.g. 2026-10-01T00:00:00Z.",
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "end_date": {
+            "description": "Latest filed time, ISO 8601.",
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "near": {
+            "description": "Only requests within radius_meters of this point.",
+            "type": "object",
+            "properties": {
+              "lat": {
+                "type": "number",
+                "minimum": -90,
+                "maximum": 90
+              },
+              "long": {
+                "type": "number",
+                "minimum": -180,
+                "maximum": 180
+              },
+              "radius_meters": {
+                "default": 100,
+                "type": "number",
+                "minimum": 1,
+                "maximum": 5000
+              }
+            },
+            "required": [
+              "lat",
+              "long"
+            ]
+          },
+          "bbox": {
+            "description": "Only requests inside this bounding box.",
+            "type": "object",
+            "properties": {
+              "min_long": {
+                "type": "number"
+              },
+              "min_lat": {
+                "type": "number"
+              },
+              "max_long": {
+                "type": "number"
+              },
+              "max_lat": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "min_long",
+              "min_lat",
+              "max_long",
+              "max_lat"
+            ]
+          },
+          "limit": {
+            "default": 20,
+            "description": "Most requests to return.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "endpoint": {
+            "default": "production",
+            "description": "Which endpoint to read: the live \"production\" system or the \"test\" sandbox.",
+            "type": "string",
+            "enum": [
+              "production",
+              "test"
+            ]
+          }
+        },
+        "required": [
+          "city"
+        ],
+        "$schema": "https://json-schema.org/draft/2020-12/schema"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "get_request",
+      "title": "Get one service request",
+      "description": "Call this when you have a service request ID and need its current state. Returns the request with its status, the city's latest status notes, service, address, coordinates, and filed, updated and expected dates.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "city": {
+            "type": "string",
+            "enum": [
+              "boston",
+              "new-haven",
+              "sandbox-city"
+            ],
+            "description": "City key. One of: boston, new-haven, sandbox-city."
+          },
+          "service_request_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The city's ID for the request."
+          },
+          "endpoint": {
+            "default": "production",
+            "description": "Which endpoint to read: the live \"production\" system or the \"test\" sandbox.",
+            "type": "string",
+            "enum": [
+              "production",
+              "test"
+            ]
+          }
+        },
+        "required": [
+          "city",
+          "service_request_id"
+        ],
+        "$schema": "https://json-schema.org/draft/2020-12/schema"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "create_request",
+      "title": "Create a service request (sandbox only)",
+      "description": "Call this to file a new service request after you have checked for duplicates with search_requests. It writes to the city's TEST endpoint and refuses to touch production unless the operator set ALLOW_PRODUCTION_WRITES=true. Give a location as lat and long, as an address, or both. Returns the new service_request_id (or a token when the city assigns the ID later), the endpoint it was filed on, and the time.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "city": {
+            "type": "string",
+            "enum": [
+              "boston",
+              "new-haven",
+              "sandbox-city"
+            ],
+            "description": "City key. One of: boston, new-haven, sandbox-city."
+          },
+          "service_code": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The service_code from list_services on the test endpoint."
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000,
+            "description": "What is wrong, in the reporter's words."
+          },
+          "lat": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "long": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "address": {
+            "description": "Street address or intersection.",
+            "type": "string",
+            "minLength": 1
+          },
+          "attributes": {
+            "description": "Answers to the service definition, keyed by attribute code.",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "city",
+          "service_code",
+          "description"
+        ],
+        "$schema": "https://json-schema.org/draft/2020-12/schema"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "You are now following the pothole report at 1079-1089 Commonwealth Ave, which is open. Ask me about your requests any time to hear what has changed."
+    }
+  ],
+  "structuredContent": {
+    "outcome": "followed",
+    "spoken_summary": "You are now following the pothole report at 1079-1089 Commonwealth Ave, which is open. Ask me about your requests any time to hear what has changed.",
+    "requests": [
+      {
+        "request_id": "boston/6be22cb0-1739-49b1-967e-d19567a7faac",
+        "service_request_id": "6be22cb0-1739-49b1-967e-d19567a7faac",
+        "city": "boston",
+        "city_name": "Boston",
+        "source": "production",
+        "service_code": "9aaa7721-e212-4d16-a77e-d8f8d2f4ba28",
+        "service_name": "Pothole",
+        "status": "open",
+        "description": "Potholes ,cracks and bumps in the road between the pedestrian crosswalk and traffic signals between COMMONWEALTH AVE and BRIGHTON AVE,PACKARDS CORNER in BRIGHTON, MA 02135.I am a disabled person and I was injured while traveling through the area during this dangerous wet weather.The area needs attention a.s.a.p.Thank You. \r\n10-12-2026-MONDAY",
+        "address": "1079-1089 Commonwealth Ave, Boston, MA 02215",
+        "lat": 42.352443,
+        "long": -71.124948,
+        "requested_datetime": "2026-10-13T03:25:20.000Z",
+        "updated_datetime": "2026-10-13T03:26:29.000Z",
+        "media_url": "https://spot-boston-res.cloudinary.com/image/upload/c_limit,h_748,w_236//l_v1791859104:boston:production:xnsqmronwifskad3rxt2/c_limit,h_748,w_236/fl_layer_apply,g_north_west,x_266/l_v1791860389:boston:production:pk0hoxlq3hjwayubxobk/c_limit,h_748,w_236/fl_layer_apply,g_north_west,x_522/v1791859100/boston/production/ubqgcny9unwmxdhqwpa0.jpg",
+        "relation": "followed",
+        "relation_since": "2026-10-13T07:35:50.235Z",
+        "timeline": [
+          {
+            "label": "Reported",
+            "at": "2026-10-13T03:25:20.000Z",
+            "state": "done"
+          },
+          {
+            "label": "In progress",
+            "at": "2026-10-13T03:26:29.000Z",
+            "state": "current"
+          },
+          {
+            "label": "Closed",
+            "state": "pending"
+          }
+        ]
+      }
+    ],
+    "as_of": "2026-10-13T07:35:50.254Z"
+  }
+}

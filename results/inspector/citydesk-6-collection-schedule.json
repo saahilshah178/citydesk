@@ -1,0 +1,65 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "At 700 Boylston St, trash and recycling are both picked up on Mondays and Thursdays. The next pickup is this Thursday, October 15th."
+    }
+  ],
+  "structuredContent": {
+    "outcome": "schedule",
+    "spoken_summary": "At 700 Boylston St, trash and recycling are both picked up on Mondays and Thursdays. The next pickup is this Thursday, October 15th.",
+    "schedule": {
+      "address": "700 Boylston St",
+      "neighborhood": "Boston",
+      "zip_code": "02116",
+      "address_id": "156199",
+      "trash": {
+        "weekdays": [
+          "Monday",
+          "Thursday"
+        ],
+        "next_date": "2026-10-15"
+      },
+      "recycling": {
+        "weekdays": [
+          "Monday",
+          "Thursday"
+        ],
+        "next_date": "2026-10-15"
+      },
+      "upcoming": [
+        {
+          "date": "2026-10-15",
+          "weekday": "Thursday",
+          "trash": true,
+          "recycling": true
+        },
+        {
+          "date": "2026-10-19",
+          "weekday": "Monday",
+          "trash": true,
+          "recycling": true
+        },
+        {
+          "date": "2026-10-22",
+          "weekday": "Thursday",
+          "trash": true,
+          "recycling": true
+        },
+        {
+          "date": "2026-10-26",
+          "weekday": "Monday",
+          "trash": true,
+          "recycling": true
+        }
+      ],
+      "time_zone": "America/New_York",
+      "dataset": {
+        "name": "Trash Schedules by Address (data.boston.gov)",
+        "resource_id": "fee8ee07-b8b5-4ee5-b540-5162590ba5c1",
+        "last_modified": "2026-10-11T23:58:03.032Z"
+      }
+    },
+    "as_of": "2026-10-13T07:36:27.293Z"
+  }
+}

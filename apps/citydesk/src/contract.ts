@@ -106,6 +106,11 @@ export interface Clarification {
   question: string;
   /** Up to 5 short choices the resident can pick from. May be empty for an open question. */
   options: string[];
+  /**
+   * Set when the question fills in a detail of the report rather than its location: call
+   * report_issue again with the same arguments plus `details: { [field]: <the answer> }`.
+   */
+  field?: string;
 }
 
 export interface ResolvedLocation {
@@ -131,9 +136,22 @@ export type IssueOutcome =
   /** Open requests near a location, nearest first. Empty list means none were found. */
   | 'nearby';
 
-/** structuredContent of report_issue, find_nearby_reports, follow_request, my_requests, request_status. */
+/** The error carried by any failed tool call. */
+export interface ToolError {
+  code: ErrorCode;
+  message: string;
+  /** True when the same call may succeed if retried later. */
+  retryable: boolean;
+  details?: Record<string, unknown>;
+}
+
+/**
+ * structuredContent of report_issue, find_nearby_reports, follow_request, my_requests, request_status.
+ * A failed call has outcome "error", an empty `requests` list and `error` set (see ErrorResult), so
+ * every result, success or failure, conforms to the tool's declared output schema.
+ */
 export interface IssueResult {
-  outcome: IssueOutcome;
+  outcome: IssueOutcome | 'error';
   /** One or two sentences that stand on their own when spoken, with no card on screen. */
   spoken_summary: string;
   requests: IssueView[];
@@ -141,6 +159,8 @@ export interface IssueResult {
   resolved_location?: ResolvedLocation;
   /** The duplicate search that ran, when one did. */
   search?: { radius_m: number; window_days: number; service_name?: string };
+  /** Set only when outcome is "error". */
+  error?: ToolError;
   /** ISO 8601. When this result was computed. */
   as_of: string;
 }
@@ -172,10 +192,12 @@ export interface CollectionSchedule {
 
 /** structuredContent of collection_schedule. */
 export interface ScheduleResult {
-  outcome: 'schedule' | 'needs_clarification';
+  outcome: 'schedule' | 'needs_clarification' | 'error';
   spoken_summary: string;
   schedule?: CollectionSchedule;
   clarification?: Clarification;
+  /** Set only when outcome is "error". */
+  error?: ToolError;
   /** ISO 8601. */
   as_of: string;
 }
@@ -192,17 +214,14 @@ export type ErrorCode =
   | 'not_configured'
   | 'internal';
 
-/** structuredContent of any tool call that failed. Always returned with `isError: true`. */
+/**
+ * What every failed tool call has in common. It is always returned with `isError: true`. Issue tools
+ * also include `requests: []`, so the same object is a valid IssueResult.
+ */
 export interface ErrorResult {
   outcome: 'error';
   spoken_summary: string;
-  error: {
-    code: ErrorCode;
-    message: string;
-    /** True when the same call may succeed if retried later. */
-    retryable: boolean;
-    details?: Record<string, unknown>;
-  };
+  error: ToolError;
   as_of: string;
 }
 

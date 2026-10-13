@@ -1,0 +1,1499 @@
+{
+  "tools": [
+    {
+      "name": "report_issue",
+      "title": "Report a problem to the city",
+      "description": "Call this when the resident wants to report a non-emergency problem in Boston, such as a pothole or a broken streetlight. It finds the place, checks whether the same problem is already reported nearby, and only then files a new request, so call it directly rather than calling find_nearby_reports first. Returns one of three outcomes: \"possible_duplicate\" with the existing open reports (offer follow_request instead of filing again), \"needs_clarification\" with one question to ask the resident before calling again, or \"filed\" with the new request, its request_id and filing time. New requests go to a test system, never to the live city system.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "issue_type": {
+            "type": "string",
+            "enum": [
+              "pothole",
+              "streetlight",
+              "traffic_signal",
+              "sidewalk",
+              "graffiti",
+              "illegal_dumping",
+              "missed_trash",
+              "litter",
+              "tree",
+              "abandoned_vehicle",
+              "illegal_parking",
+              "rodent",
+              "other"
+            ],
+            "description": "The kind of problem. Pick the closest: pothole (hole in the road, road damage, sinkhole); streetlight (street light out, lamp post, light flickering, dark street); traffic_signal (traffic light, walk signal, stoplight); sidewalk (broken sidewalk, cracked pavement, trip hazard); graffiti (tagging, spray paint, vandalism); illegal_dumping (dumped furniture, dumped trash, mattress on the street); missed_trash (trash not collected, recycling not picked up, missed pickup); litter (trash on the street, debris, overflowing bin); tree (fallen tree, broken branch, tree down, needs pruning); abandoned_vehicle (abandoned car, junk car); illegal_parking (blocked driveway, parked in the bike lane, double parked); rodent (rats, mice, rat sighting); other (anything else, something not listed)."
+          },
+          "description": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 1000,
+            "description": "What is wrong, in the resident's own words."
+          },
+          "location": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200,
+            "description": "Where it is, as the resident said it: a street address, an intersection, or a landmark in Boston."
+          },
+          "details": {
+            "description": "Answers to earlier needs_clarification questions that named a \"field\": { <field>: <the resident's answer> }.",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "file_even_if_duplicate": {
+            "default": false,
+            "description": "Set true only after the resident heard about an existing report and still wants a new one filed.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "issue_type",
+          "description",
+          "location"
+        ],
+        "$schema": "https://json-schema.org/draft/2020-12/schema"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "filed",
+              "possible_duplicate",
+              "needs_clarification",
+              "followed",
+              "status",
+              "requests",
+              "nearby"
+            ]
+          },
+          "spoken_summary": {
+            "type": "string"
+          },
+          "requests": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "request_id": {
+                  "type": "string",
+                  "description": "Handle to pass to follow_request or request_status"
+                },
+                "service_request_id": {
+                  "type": "string",
+                  "description": "The city's own ID for the request"
+                },
+                "city": {
+                  "type": "string"
+                },
+                "city_name": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "production",
+                    "sandbox"
+                  ]
+                },
+                "service_code": {
+                  "type": "string"
+                },
+                "service_name": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "open",
+                    "closed"
+                  ]
+                },
+                "status_notes": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "address": {
+                  "type": "string"
+                },
+                "lat": {
+                  "type": "number"
+                },
+                "long": {
+                  "type": "number"
+                },
+                "requested_datetime": {
+                  "type": "string",
+                  "description": "ISO 8601 date-time"
+                },
+                "updated_datetime": {
+                  "type": "string",
+                  "description": "ISO 8601 date-time"
+                },
+                "expected_datetime": {
+                  "type": "string",
+                  "description": "ISO 8601 date-time"
+                },
+                "media_url": {
+                  "type": "string"
+                },
+                "distance_m": {
+                  "type": "number"
+                },
+                "relation": {
+                  "type": "string",
+                  "enum": [
+                    "filed",
+                    "followed"
+                  ]
+                },
+                "relation_since": {
+                  "type": "string",
+                  "description": "ISO 8601 date-time"
+                },
+                "timeline": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "label": {
+                        "type": "string"
+                      },
+                      "at": {
+                        "type": "string",
+                        "description": "ISO 8601 date-time"
+                      },
+                      "state": {
+                        "type": "string",
+                        "enum": [
+                          "done",
+                          "current",
+                          "pending"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "label",
+                      "state"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "request_id",
+                "service_request_id",
+                "city",
+                "city_name",
+                "source",
+                "service_name",
+                "status",
+                "requested_datetime",
+                "timeline"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "clarification": {
+            "type": "object",
+            "properties": {
+              "question": {
+                "type": "string"
+              },
+              "options": {
+                "maxItems": 5,
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "field": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "question",
+              "options"
+            ],
+            "additionalProperties": false
+          },
+          "resolved_location": {
+            "type": "object",
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "lat": {
+                "type": "number"
+              },
+              "long": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "label",
+              "lat",
+              "long"
+            ],
+            "additionalProperties": false
+          },
+          "search": {
+            "type": "object",
+            "properties": {
+              "radius_m": {
+                "type": "number"
+              },
+              "window_days": {
+                "type": "number"
+              },
+              "service_name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "radius_m",
+              "window_days"
+            ],
+            "additionalProperties": false
+          },
+          "as_of": {
+            "type": "string",
+            "description": "ISO 8601 date-time"
+          }
+        },
+        "required": [
+          "outcome",
+          "spoken_summary",
+          "requests",
+          "as_of"
+        ],
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "find_nearby_reports",
+      "title": "Check for existing reports near a place",
+      "description": "Call this when the resident asks whether a problem has already been reported, or what is reported near a place in Boston, without asking to file anything. It searches open requests of one type around the location. Returns the matching open requests, nearest first, each with its request_id, address, distance in meters, status and filing date. An empty list means nothing of that type is open nearby.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "issue_type": {
+            "type": "string",
+            "enum": [
+              "pothole",
+              "streetlight",
+              "traffic_signal",
+              "sidewalk",
+              "graffiti",
+              "illegal_dumping",
+              "missed_trash",
+              "litter",
+              "tree",
+              "abandoned_vehicle",
+              "illegal_parking",
+              "rodent",
+              "other"
+            ],
+            "description": "The kind of problem. Pick the closest: pothole (hole in the road, road damage, sinkhole); streetlight (street light out, lamp post, light flickering, dark street); traffic_signal (traffic light, walk signal, stoplight); sidewalk (broken sidewalk, cracked pavement, trip hazard); graffiti (tagging, spray paint, vandalism); illegal_dumping (dumped furniture, dumped trash, mattress on the street); missed_trash (trash not collected, recycling not picked up, missed pickup); litter (trash on the street, debris, overflowing bin); tree (fallen tree, broken branch, tree down, needs pruning); abandoned_vehicle (abandoned car, junk car); illegal_parking (blocked driveway, parked in the bike lane, double parked); rodent (rats, mice, rat sighting); other (anything else, something not listed)."
+          },
+          "location": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200,
+            "description": "Where it is, as the resident said it: a street address, an intersection, or a landmark in Boston."
+          },
+          "radius_meters": {
+            "description": "How far around the place to look. Defaults to 50 meters.",
+            "type": "integer",
+            "minimum": 10,
+            "maximum": 500
+          }
+        },
+        "required": [
+          "issue_type",
+          "location"
+        ],
+        "$schema": "https://json-schema.org/draft/2020-12/schema"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "filed",
+              "possible_duplicate",
+              "needs_clarification",
+              "followed",
+              "status",
+              "requests",
+              "nearby"
+            ]
+          },
+          "spoken_summary": {
+            "type": "string"
+          },
+          "requests": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "request_id": {
+                  "type": "string",
+                  "description": "Handle to pass to follow_request or request_status"
+                },
+                "service_request_id": {
+                  "type": "string",
+                  "description": "The city's own ID for the request"
+                },
+                "city": {
+                  "type": "string"
+                },
+                "city_name": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "production",
+                    "sandbox"
+                  ]
+                },
+                "service_code": {
+                  "type": "string"
+                },
+                "service_name": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "open",
+                    "closed"
+                  ]
+                },
+                "status_notes": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "address": {
+                  "type": "string"
+                },
+                "lat": {
+                  "type": "number"
+                },
+                "long": {
+                  "type": "number"
+                },
+                "requested_datetime": {
+                  "type": "string",
+                  "description": "ISO 8601 date-time"
+                },
+                "updated_datetime": {
+                  "type": "string",
+                  "description": "ISO 8601 date-time"
+                },
+                "expected_datetime": {
+                  "type": "string",
+                  "description": "ISO 8601 date-time"
+                },
+                "media_url": {
+                  "type": "string"
+                },
+                "distance_m": {
+                  "type": "number"
+                },
+                "relation": {
+                  "type": "string",
+                  "enum": [
+                    "filed",
+                    "followed"
+                  ]
+                },
+                "relation_since": {
+                  "type": "string",
+                  "description": "ISO 8601 date-time"
+                },
+                "timeline": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "label": {
+                        "type": "string"
+                      },
+                      "at": {
+                        "type": "string",
+                        "description": "ISO 8601 date-time"
+                      },
+                      "state": {
+                        "type": "string",
+                        "enum": [
+                          "done",
+                          "current",
+                          "pending"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "label",
+                      "state"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "request_id",
+                "service_request_id",
+                "city",
+                "city_name",
+                "source",
+                "service_name",
+                "status",
+                "requested_datetime",
+                "timeline"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "clarification": {
+            "type": "object",
+            "properties": {
+              "question": {
+                "type": "string"
+              },
+              "options": {
+                "maxItems": 5,
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "field": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "question",
+              "options"
+            ],
+            "additionalProperties": false
+          },
+          "resolved_location": {
+            "type": "object",
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "lat": {
+                "type": "number"
+              },
+              "long": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "label",
+              "lat",
+              "long"
+            ],
+            "additionalProperties": false
+          },
+          "search": {
+            "type": "object",
+            "properties": {
+              "radius_m": {
+                "type": "number"
+              },
+              "window_days": {
+                "type": "number"
+              },
+              "service_name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "radius_m",
+              "window_days"
+            ],
+            "additionalProperties": false
+          },
+          "as_of": {
+            "type": "string",
+            "description": "ISO 8601 date-time"
+          }
+        },
+        "required": [
+          "outcome",
+          "spoken_summary",
+          "requests",
+          "as_of"
+        ],
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "follow_request",
+      "title": "Follow an existing request",
+      "description": "Call this when the resident wants to follow or track a request that already exists, typically one that report_issue or find_nearby_reports just returned. It saves the request to the resident's list so my_requests and request_status can report on it later, even in a new conversation. Returns the request with its current status, the time the resident started following it, and its request_id.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200,
+            "description": "The request_id of a request, exactly as an earlier tool result returned it."
+          }
+        },
+        "required": [
+          "request_id"
+        ],
+        "$schema": "https://json-schema.org/draft/2020-12/schema"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "filed",
+              "possible_duplicate",
+              "needs_clarification",
+              "followed",
+              "status",
+              "requests",
+              "nearby"
+            ]
+          },
+          "spoken_summary": {
+            "type": "string"
+          },
+          "requests": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "request_id": {
+                  "type": "string",
+                  "description": "Handle to pass to follow_request or request_status"
+                },
+                "service_request_id": {
+                  "type": "string",
+                  "description": "The city's own ID for the request"
+                },
+                "city": {
+                  "type": "string"
+                },
+                "city_name": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "production",
+                    "sandbox"
+                  ]
+                },
+                "service_code": {
+                  "type": "string"
+                },
+                "service_name": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "open",
+                    "closed"
+                  ]
+                },
+                "status_notes": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "address": {
+                  "type": "string"
+                },
+                "lat": {
+                  "type": "number"
+                },
+                "long": {
+                  "type": "number"
+                },
+                "requested_datetime": {
+                  "type": "string",
+                  "description": "ISO 8601 date-time"
+                },
+                "updated_datetime": {
+                  "type": "string",
+                  "description": "ISO 8601 date-time"
+                },
+                "expected_datetime": {
+                  "type": "string",
+                  "description": "ISO 8601 date-time"
+                },
+                "media_url": {
+                  "type": "string"
+                },
+                "distance_m": {
+                  "type": "number"
+                },
+                "relation": {
+                  "type": "string",
+                  "enum": [
+                    "filed",
+                    "followed"
+                  ]
+                },
+                "relation_since": {
+                  "type": "string",
+                  "description": "ISO 8601 date-time"
+                },
+                "timeline": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "label": {
+                        "type": "string"
+                      },
+                      "at": {
+                        "type": "string",
+                        "description": "ISO 8601 date-time"
+                      },
+                      "state": {
+                        "type": "string",
+                        "enum": [
+                          "done",
+                          "current",
+                          "pending"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "label",
+                      "state"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "request_id",
+                "service_request_id",
+                "city",
+                "city_name",
+                "source",
+                "service_name",
+                "status",
+                "requested_datetime",
+                "timeline"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "clarification": {
+            "type": "object",
+            "properties": {
+              "question": {
+                "type": "string"
+              },
+              "options": {
+                "maxItems": 5,
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "field": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "question",
+              "options"
+            ],
+            "additionalProperties": false
+          },
+          "resolved_location": {
+            "type": "object",
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "lat": {
+                "type": "number"
+              },
+              "long": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "label",
+              "lat",
+              "long"
+            ],
+            "additionalProperties": false
+          },
+          "search": {
+            "type": "object",
+            "properties": {
+              "radius_m": {
+                "type": "number"
+              },
+              "window_days": {
+                "type": "number"
+              },
+              "service_name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "radius_m",
+              "window_days"
+            ],
+            "additionalProperties": false
+          },
+          "as_of": {
+            "type": "string",
+            "description": "ISO 8601 date-time"
+          }
+        },
+        "required": [
+          "outcome",
+          "spoken_summary",
+          "requests",
+          "as_of"
+        ],
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "my_requests",
+      "title": "List my requests",
+      "description": "Call this when the resident asks about their requests in general, such as \"what's happening with my reports\" or \"any updates\". It loads every request they filed or follow and checks each one's current status with the city. Returns the requests newest first, each with its request_id, status, latest city note, and the dates it was filed and last updated. Use request_status instead when they ask about one specific request.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "$schema": "https://json-schema.org/draft/2020-12/schema"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "filed",
+              "possible_duplicate",
+              "needs_clarification",
+              "followed",
+              "status",
+              "requests",
+              "nearby"
+            ]
+          },
+          "spoken_summary": {
+            "type": "string"
+          },
+          "requests": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "request_id": {
+                  "type": "string",
+                  "description": "Handle to pass to follow_request or request_status"
+                },
+                "service_request_id": {
+                  "type": "string",
+                  "description": "The city's own ID for the request"
+                },
+                "city": {
+                  "type": "string"
+                },
+                "city_name": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "production",
+                    "sandbox"
+                  ]
+                },
+                "service_code": {
+                  "type": "string"
+                },
+                "service_name": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "open",
+                    "closed"
+                  ]
+                },
+                "status_notes": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "address": {
+                  "type": "string"
+                },
+                "lat": {
+                  "type": "number"
+                },
+                "long": {
+                  "type": "number"
+                },
+                "requested_datetime": {
+                  "type": "string",
+                  "description": "ISO 8601 date-time"
+                },
+                "updated_datetime": {
+                  "type": "string",
+                  "description": "ISO 8601 date-time"
+                },
+                "expected_datetime": {
+                  "type": "string",
+                  "description": "ISO 8601 date-time"
+                },
+                "media_url": {
+                  "type": "string"
+                },
+                "distance_m": {
+                  "type": "number"
+                },
+                "relation": {
+                  "type": "string",
+                  "enum": [
+                    "filed",
+                    "followed"
+                  ]
+                },
+                "relation_since": {
+                  "type": "string",
+                  "description": "ISO 8601 date-time"
+                },
+                "timeline": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "label": {
+                        "type": "string"
+                      },
+                      "at": {
+                        "type": "string",
+                        "description": "ISO 8601 date-time"
+                      },
+                      "state": {
+                        "type": "string",
+                        "enum": [
+                          "done",
+                          "current",
+                          "pending"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "label",
+                      "state"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "request_id",
+                "service_request_id",
+                "city",
+                "city_name",
+                "source",
+                "service_name",
+                "status",
+                "requested_datetime",
+                "timeline"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "clarification": {
+            "type": "object",
+            "properties": {
+              "question": {
+                "type": "string"
+              },
+              "options": {
+                "maxItems": 5,
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "field": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "question",
+              "options"
+            ],
+            "additionalProperties": false
+          },
+          "resolved_location": {
+            "type": "object",
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "lat": {
+                "type": "number"
+              },
+              "long": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "label",
+              "lat",
+              "long"
+            ],
+            "additionalProperties": false
+          },
+          "search": {
+            "type": "object",
+            "properties": {
+              "radius_m": {
+                "type": "number"
+              },
+              "window_days": {
+                "type": "number"
+              },
+              "service_name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "radius_m",
+              "window_days"
+            ],
+            "additionalProperties": false
+          },
+          "as_of": {
+            "type": "string",
+            "description": "ISO 8601 date-time"
+          }
+        },
+        "required": [
+          "outcome",
+          "spoken_summary",
+          "requests",
+          "as_of"
+        ],
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "request_status",
+      "title": "Get the status of one request",
+      "description": "Call this when the resident asks about one specific request and you have its request_id from an earlier result (call my_requests first if you do not). It asks the city for the current state of that request. Returns the request with its status, the city's latest note, a timeline, and the dates it was filed, last updated and expected to be resolved.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200,
+            "description": "The request_id of a request, exactly as an earlier tool result returned it."
+          }
+        },
+        "required": [
+          "request_id"
+        ],
+        "$schema": "https://json-schema.org/draft/2020-12/schema"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "filed",
+              "possible_duplicate",
+              "needs_clarification",
+              "followed",
+              "status",
+              "requests",
+              "nearby"
+            ]
+          },
+          "spoken_summary": {
+            "type": "string"
+          },
+          "requests": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "request_id": {
+                  "type": "string",
+                  "description": "Handle to pass to follow_request or request_status"
+                },
+                "service_request_id": {
+                  "type": "string",
+                  "description": "The city's own ID for the request"
+                },
+                "city": {
+                  "type": "string"
+                },
+                "city_name": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "production",
+                    "sandbox"
+                  ]
+                },
+                "service_code": {
+                  "type": "string"
+                },
+                "service_name": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "open",
+                    "closed"
+                  ]
+                },
+                "status_notes": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "address": {
+                  "type": "string"
+                },
+                "lat": {
+                  "type": "number"
+                },
+                "long": {
+                  "type": "number"
+                },
+                "requested_datetime": {
+                  "type": "string",
+                  "description": "ISO 8601 date-time"
+                },
+                "updated_datetime": {
+                  "type": "string",
+                  "description": "ISO 8601 date-time"
+                },
+                "expected_datetime": {
+                  "type": "string",
+                  "description": "ISO 8601 date-time"
+                },
+                "media_url": {
+                  "type": "string"
+                },
+                "distance_m": {
+                  "type": "number"
+                },
+                "relation": {
+                  "type": "string",
+                  "enum": [
+                    "filed",
+                    "followed"
+                  ]
+                },
+                "relation_since": {
+                  "type": "string",
+                  "description": "ISO 8601 date-time"
+                },
+                "timeline": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "label": {
+                        "type": "string"
+                      },
+                      "at": {
+                        "type": "string",
+                        "description": "ISO 8601 date-time"
+                      },
+                      "state": {
+                        "type": "string",
+                        "enum": [
+                          "done",
+                          "current",
+                          "pending"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "label",
+                      "state"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "request_id",
+                "service_request_id",
+                "city",
+                "city_name",
+                "source",
+                "service_name",
+                "status",
+                "requested_datetime",
+                "timeline"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "clarification": {
+            "type": "object",
+            "properties": {
+              "question": {
+                "type": "string"
+              },
+              "options": {
+                "maxItems": 5,
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "field": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "question",
+              "options"
+            ],
+            "additionalProperties": false
+          },
+          "resolved_location": {
+            "type": "object",
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "lat": {
+                "type": "number"
+              },
+              "long": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "label",
+              "lat",
+              "long"
+            ],
+            "additionalProperties": false
+          },
+          "search": {
+            "type": "object",
+            "properties": {
+              "radius_m": {
+                "type": "number"
+              },
+              "window_days": {
+                "type": "number"
+              },
+              "service_name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "radius_m",
+              "window_days"
+            ],
+            "additionalProperties": false
+          },
+          "as_of": {
+            "type": "string",
+            "description": "ISO 8601 date-time"
+          }
+        },
+        "required": [
+          "outcome",
+          "spoken_summary",
+          "requests",
+          "as_of"
+        ],
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "collection_schedule",
+      "title": "Trash and recycling days",
+      "description": "Call this when the resident asks when trash or recycling is collected, or which day to put bins out, at an address in Boston. It looks the address up in the city's published schedule and remembers it as the resident's home address. Returns the matched address, the weekly trash and recycling days, the date of the next pickup of each, and every pickup in the next 14 days. Omit the address to reuse the one saved from an earlier call.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "description": "Street number and street name, e.g. \"700 Boylston Street\". Add the neighborhood if the resident said it. Omit to use the saved home address.",
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "schedule",
+              "needs_clarification"
+            ]
+          },
+          "spoken_summary": {
+            "type": "string"
+          },
+          "schedule": {
+            "type": "object",
+            "properties": {
+              "address": {
+                "type": "string"
+              },
+              "neighborhood": {
+                "type": "string"
+              },
+              "zip_code": {
+                "type": "string"
+              },
+              "address_id": {
+                "type": "string"
+              },
+              "trash": {
+                "type": "object",
+                "properties": {
+                  "weekdays": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "Monday",
+                        "Tuesday",
+                        "Wednesday",
+                        "Thursday",
+                        "Friday",
+                        "Saturday",
+                        "Sunday"
+                      ]
+                    }
+                  },
+                  "next_date": {
+                    "description": "YYYY-MM-DD",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "weekdays"
+                ],
+                "additionalProperties": false
+              },
+              "recycling": {
+                "type": "object",
+                "properties": {
+                  "weekdays": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "Monday",
+                        "Tuesday",
+                        "Wednesday",
+                        "Thursday",
+                        "Friday",
+                        "Saturday",
+                        "Sunday"
+                      ]
+                    }
+                  },
+                  "next_date": {
+                    "description": "YYYY-MM-DD",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "weekdays"
+                ],
+                "additionalProperties": false
+              },
+              "upcoming": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "date": {
+                      "type": "string"
+                    },
+                    "weekday": {
+                      "type": "string",
+                      "enum": [
+                        "Monday",
+                        "Tuesday",
+                        "Wednesday",
+                        "Thursday",
+                        "Friday",
+                        "Saturday",
+                        "Sunday"
+                      ]
+                    },
+                    "trash": {
+                      "type": "boolean"
+                    },
+                    "recycling": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "date",
+                    "weekday",
+                    "trash",
+                    "recycling"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "time_zone": {
+                "type": "string"
+              },
+              "dataset": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "resource_id": {
+                    "type": "string"
+                  },
+                  "last_modified": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "resource_id"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "address",
+              "address_id",
+              "trash",
+              "recycling",
+              "upcoming",
+              "time_zone",
+              "dataset"
+            ],
+            "additionalProperties": false
+          },
+          "clarification": {
+            "type": "object",
+            "properties": {
+              "question": {
+                "type": "string"
+              },
+              "options": {
+                "maxItems": 5,
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "field": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "question",
+              "options"
+            ],
+            "additionalProperties": false
+          },
+          "as_of": {
+            "type": "string",
+            "description": "ISO 8601 date-time"
+          }
+        },
+        "required": [
+          "outcome",
+          "spoken_summary",
+          "as_of"
+        ],
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    }
+  ]
+}

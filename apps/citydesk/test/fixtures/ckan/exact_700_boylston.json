@@ -1,0 +1,21 @@
+{
+ "success": true,
+ "result": {
+  "records": [
+   {
+    "_id": 135581,
+    "sam_address_id": "156199",
+    "full_address": "700 Boylston St",
+    "mailing_neighborhood": "Boston",
+    "state": "MA",
+    "zip_code": "02116",
+    "x_coord": "-71.0786586590845",
+    "y_coord": "42.349231021236314",
+    "recollect": "MTH",
+    "trashday": "MTH",
+    "pwd_district": "1"
+   }
+  ],
+  "total": 1
+ }
+}

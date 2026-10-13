@@ -1,0 +1,33 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Is the light completely out, flickering, or on during the day?"
+    }
+  ],
+  "structuredContent": {
+    "outcome": "needs_clarification",
+    "spoken_summary": "Is the light completely out, flickering, or on during the day?",
+    "requests": [],
+    "clarification": {
+      "question": "Is the light completely out, flickering, or on during the day?",
+      "options": [
+        "Completely out",
+        "Flickering",
+        "On during the day"
+      ],
+      "field": "light_condition"
+    },
+    "resolved_location": {
+      "label": "700 Boylston St, Boston, MA 02116",
+      "lat": 42.349231021236314,
+      "long": -71.0786586590845
+    },
+    "search": {
+      "radius_m": 50,
+      "window_days": 30,
+      "service_name": "streetlight outage"
+    },
+    "as_of": "2026-10-13T07:36:01.567Z"
+  }
+}

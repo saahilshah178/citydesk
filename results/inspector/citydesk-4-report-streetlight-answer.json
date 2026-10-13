@@ -1,0 +1,62 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Done. I filed your streetlight outage report for 700 Boylston St in the CityDesk sandbox, reference SB-44575. It is a test system, so nothing was sent to the city, and I will remember it when you ask about your requests."
+    }
+  ],
+  "structuredContent": {
+    "outcome": "filed",
+    "spoken_summary": "Done. I filed your streetlight outage report for 700 Boylston St in the CityDesk sandbox, reference SB-44575. It is a test system, so nothing was sent to the city, and I will remember it when you ask about your requests.",
+    "requests": [
+      {
+        "request_id": "citydesk-sandbox/SB-44575",
+        "service_request_id": "SB-44575",
+        "city": "boston",
+        "city_name": "Boston",
+        "source": "sandbox",
+        "service_code": "sandbox-streetlight",
+        "service_name": "Street Light Outage",
+        "status": "open",
+        "status_notes": "Received by the CityDesk sandbox. Nothing was sent to a real city.",
+        "description": "The streetlight in front of the library is out",
+        "address": "700 Boylston St, Boston, MA 02116",
+        "lat": 42.349231021236314,
+        "long": -71.0786586590845,
+        "requested_datetime": "2026-10-13T07:36:08.506Z",
+        "updated_datetime": "2026-10-13T07:36:08.506Z",
+        "expected_datetime": "2026-10-14T03:36:08.506Z",
+        "relation": "filed",
+        "relation_since": "2026-10-13T07:36:08.509Z",
+        "timeline": [
+          {
+            "label": "Reported",
+            "at": "2026-10-13T07:36:08.506Z",
+            "state": "done"
+          },
+          {
+            "label": "In progress",
+            "at": "2026-10-13T07:36:08.506Z",
+            "state": "current"
+          },
+          {
+            "label": "Closed",
+            "at": "2026-10-14T03:36:08.506Z",
+            "state": "pending"
+          }
+        ]
+      }
+    ],
+    "resolved_location": {
+      "label": "700 Boylston St, Boston, MA 02116",
+      "lat": 42.349231021236314,
+      "long": -71.0786586590845
+    },
+    "search": {
+      "radius_m": 50,
+      "window_days": 30,
+      "service_name": "streetlight outage"
+    },
+    "as_of": "2026-10-13T07:36:08.511Z"
+  }
+}

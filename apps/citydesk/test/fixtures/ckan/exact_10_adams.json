@@ -1,0 +1,21 @@
+{
+ "success": true,
+ "result": {
+  "records": [
+   {
+    "_id": 268,
+    "sam_address_id": "307",
+    "full_address": "10 Adams St",
+    "mailing_neighborhood": "Charlestown",
+    "state": "MA",
+    "zip_code": "02129",
+    "x_coord": "-71.05936200118317",
+    "y_coord": "42.3745260002936",
+    "recollect": "W1A",
+    "trashday": "W",
+    "pwd_district": "1A"
+   }
+  ],
+  "total": 1
+ }
+}

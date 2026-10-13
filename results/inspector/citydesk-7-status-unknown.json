@@ -1,0 +1,23 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "I could not find that request. It may have been removed."
+    }
+  ],
+  "structuredContent": {
+    "outcome": "error",
+    "spoken_summary": "I could not find that request. It may have been removed.",
+    "error": {
+      "code": "not_found",
+      "message": "Boston has no request with ID 00000000-0000-0000-0000-000000000000.",
+      "retryable": false,
+      "details": {
+        "request_id": "boston/00000000-0000-0000-0000-000000000000"
+      }
+    },
+    "as_of": "2026-10-13T07:36:39.658Z",
+    "requests": []
+  },
+  "isError": true
+}

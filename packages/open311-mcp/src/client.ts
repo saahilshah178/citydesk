@@ -29,6 +29,11 @@ export interface Open311ClientOptions {
   sleep?: (ms: number) => Promise<void>;
   /** Share limiters between clients. Defaults to one process-wide registry keyed by endpoint id. */
   limiters?: Map<string, RateLimiter>;
+  /**
+   * Longest a call may wait for the rate limiter before failing with `rate_limited`. Interactive
+   * callers set this to a couple of seconds; batch jobs leave it unset and simply wait their turn.
+   */
+  maxRateLimitWaitMs?: number;
 }
 
 const DEFAULT_USER_AGENT = 'open311-mcp/0.1 (+https://github.com/saahilshah178/citydesk)';
@@ -46,6 +51,7 @@ export class Open311Client {
   private readonly now: () => number;
   private readonly sleep: (ms: number) => Promise<void>;
   private readonly limiters: Map<string, RateLimiter>;
+  private readonly maxRateLimitWaitMs: number;
 
   constructor(city: CityConfig, opts: Open311ClientOptions = {}) {
     this.city = city;
@@ -57,6 +63,7 @@ export class Open311Client {
     this.now = opts.now ?? Date.now;
     this.sleep = opts.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
     this.limiters = opts.limiters ?? sharedLimiters;
+    this.maxRateLimitWaitMs = opts.maxRateLimitWaitMs ?? Infinity;
   }
 
   /** The configured endpoint of the given kind, or a `not_configured` error. */
@@ -181,6 +188,29 @@ export class Open311Client {
       if (err instanceof Open311Error && err.code === 'not_found') return undefined;
       throw err;
     }
+  }
+
+  /**
+   * Looks up several requests in one call (GeoReport's comma-separated service_request_id), in chunks
+   * of 20. IDs the server does not return are simply absent from the result.
+   */
+  async getRequests(serviceRequestIds: readonly string[], kind: EndpointKind = 'production'): Promise<ServiceRequest[]> {
+    const endpoint = this.endpoint(kind);
+    const ids = [...new Set(serviceRequestIds)];
+    const out: ServiceRequest[] = [];
+    for (let i = 0; i < ids.length; i += 20) {
+      const chunk = ids.slice(i, i + 20);
+      const query = new URLSearchParams({ service_request_id: chunk.join(',') });
+      if (endpoint.pageSizeParam) query.set(endpoint.pageSizeParam, String(chunk.length));
+      const rows = asArray(await this.call(endpoint, 'GET', '/requests.json', query));
+      const wanted = new Set(chunk);
+      for (const row of rows) {
+        const request = normalizeRequest(row);
+        // Guard against servers that ignore the ID filter and return an unrelated page.
+        if (request && wanted.has(request.service_request_id)) out.push(request);
+      }
+    }
+    return out;
   }
 
   /**
@@ -348,7 +378,16 @@ export class Open311Client {
     const where = `${this.city.name} Open311 (${endpoint.id})`;
 
     for (let attempt = 0; ; attempt++) {
-      await this.limiter(endpoint).acquire();
+      const limiter = this.limiter(endpoint);
+      const wait = limiter.pendingDelayMs();
+      if (wait > this.maxRateLimitWaitMs) {
+        throw new Open311Error(
+          'rate_limited',
+          `${where} allows ${endpoint.rateLimitPerMinute} requests a minute and that budget is used up. Try again in ${Math.ceil(wait / 1000)} seconds.`,
+          { details: { endpoint: endpoint.id, retry_after_ms: wait } },
+        );
+      }
+      await limiter.acquire();
       let res: Response;
       try {
         res = await doFetch(url, {

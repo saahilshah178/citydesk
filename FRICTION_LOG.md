@@ -103,3 +103,34 @@ time), **low** (papercut).
 - **Severity:** low
 - **Workaround:** `allowBuilds: { esbuild: true }` is committed in `pnpm-workspace.yaml`.
 - **Suggestion:** Name the exact `pnpm approve-builds <pkg>` command in the error text.
+
+## 8. MCP Inspector and the TypeScript client disagree about validating error results
+
+- **Task:** Manual pass over the CityDesk tools with the MCP Inspector CLI.
+- **Steps taken:** Declared an `outputSchema` on each tool. Called a tool in a way that fails, so it
+  returned `isError: true` with a structured error object. The SDK client (`Client.callTool`)
+  accepted it in our tests; `inspector --cli --method tools/call` exited with
+  `data must have required property 'requests', data must NOT have additional properties`.
+- **Expected vs actual:** Expected both official tools to treat an error result the same way. Actual:
+  the SDK client skips output validation when `isError` is true, the Inspector validates anyway and
+  hides the real tool error behind a schema error.
+- **Severity:** medium
+- **Workaround:** Every result now conforms to the declared schema, failures included: the schema
+  has an `error` outcome and an optional `error` object, and issue tools return `requests: []` on
+  failure.
+- **Suggestion:** State in the spec whether `outputSchema` applies to `isError` results, and make the
+  Inspector show the tool's own error text when validation fails.
+
+## 9. data.boston.gov datastore: address lookups take 2 to 5 seconds and sometimes time out
+
+- **Task:** Look up one address in the "Trash Schedules by Address" dataset for a voice reply.
+- **Steps taken:** `datastore_search` with `filters={"full_address": "..."}` (exact match), then with
+  `q={"full_address": "..."}` (full text). Timed several calls.
+- **Expected vs actual:** Expected a keyed lookup to be fast. Actual: the same exact-match query took
+  0.4 s in one run and 2.4 to 4.9 s minutes later, and one call hit our 10 s timeout. The exact match
+  is case-sensitive, so "700 boylston st" finds nothing.
+- **Severity:** medium
+- **Workaround:** Normalize the spoken address to the dataset's casing and abbreviations, try the
+  exact match first and fall back to full text, and report a retryable structured error on timeout.
+- **Suggestion:** Index `full_address` (or publish a case-insensitive lookup endpoint), since "find
+  my address" is the main use of this dataset.

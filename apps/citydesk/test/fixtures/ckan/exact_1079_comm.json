@@ -1,0 +1,21 @@
+{
+ "success": true,
+ "result": {
+  "records": [
+   {
+    "_id": 32391,
+    "sam_address_id": "36988",
+    "full_address": "1079 Commonwealth Ave",
+    "mailing_neighborhood": "Allston",
+    "state": "MA",
+    "zip_code": "02215",
+    "x_coord": "-71.1245237864036",
+    "y_coord": "42.35252447129779",
+    "recollect": "TH",
+    "trashday": "TH",
+    "pwd_district": "4"
+   }
+  ],
+  "total": 1
+ }
+}

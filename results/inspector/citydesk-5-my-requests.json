@@ -1,0 +1,87 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "You have 2 requests. Your street light outage report at 700 Boylston St is still open. The pothole report at 1079-1089 Commonwealth Ave is still open."
+    }
+  ],
+  "structuredContent": {
+    "outcome": "requests",
+    "spoken_summary": "You have 2 requests. Your street light outage report at 700 Boylston St is still open. The pothole report at 1079-1089 Commonwealth Ave is still open.",
+    "requests": [
+      {
+        "request_id": "citydesk-sandbox/SB-44575",
+        "service_request_id": "SB-44575",
+        "city": "boston",
+        "city_name": "Boston",
+        "source": "sandbox",
+        "service_code": "sandbox-streetlight",
+        "service_name": "Street Light Outage",
+        "status": "open",
+        "status_notes": "Received by the CityDesk sandbox. Nothing was sent to a real city.",
+        "description": "The streetlight in front of the library is out",
+        "address": "700 Boylston St, Boston, MA 02116",
+        "lat": 42.349231021236314,
+        "long": -71.0786586590845,
+        "requested_datetime": "2026-10-13T07:36:08.506Z",
+        "updated_datetime": "2026-10-13T07:36:08.506Z",
+        "expected_datetime": "2026-10-14T03:36:08.506Z",
+        "relation": "filed",
+        "relation_since": "2026-10-13T07:36:08.509Z",
+        "timeline": [
+          {
+            "label": "Reported",
+            "at": "2026-10-13T07:36:08.506Z",
+            "state": "done"
+          },
+          {
+            "label": "In progress",
+            "at": "2026-10-13T07:36:08.506Z",
+            "state": "current"
+          },
+          {
+            "label": "Closed",
+            "at": "2026-10-14T03:36:08.506Z",
+            "state": "pending"
+          }
+        ]
+      },
+      {
+        "request_id": "boston/6be22cb0-1739-49b1-967e-d19567a7faac",
+        "service_request_id": "6be22cb0-1739-49b1-967e-d19567a7faac",
+        "city": "boston",
+        "city_name": "Boston",
+        "source": "production",
+        "service_code": "9aaa7721-e212-4d16-a77e-d8f8d2f4ba28",
+        "service_name": "Pothole",
+        "status": "open",
+        "description": "Potholes ,cracks and bumps in the road between the pedestrian crosswalk and traffic signals between COMMONWEALTH AVE and BRIGHTON AVE,PACKARDS CORNER in BRIGHTON, MA 02135.I am a disabled person and I was injured while traveling through the area during this dangerous wet weather.The area needs attention a.s.a.p.Thank You. \r\n10-12-2026-MONDAY",
+        "address": "1079-1089 Commonwealth Ave, Boston, MA 02215",
+        "lat": 42.352443,
+        "long": -71.124948,
+        "requested_datetime": "2026-10-13T03:25:20.000Z",
+        "updated_datetime": "2026-10-13T03:26:29.000Z",
+        "media_url": "https://spot-boston-res.cloudinary.com/image/upload/c_limit,h_748,w_236//l_v1791859104:boston:production:xnsqmronwifskad3rxt2/c_limit,h_748,w_236/fl_layer_apply,g_north_west,x_266/l_v1791860389:boston:production:pk0hoxlq3hjwayubxobk/c_limit,h_748,w_236/fl_layer_apply,g_north_west,x_522/v1791859100/boston/production/ubqgcny9unwmxdhqwpa0.jpg",
+        "relation": "followed",
+        "relation_since": "2026-10-13T07:35:50.235Z",
+        "timeline": [
+          {
+            "label": "Reported",
+            "at": "2026-10-13T03:25:20.000Z",
+            "state": "done"
+          },
+          {
+            "label": "In progress",
+            "at": "2026-10-13T03:26:29.000Z",
+            "state": "current"
+          },
+          {
+            "label": "Closed",
+            "state": "pending"
+          }
+        ]
+      }
+    ],
+    "as_of": "2026-10-13T07:36:17.195Z"
+  }
+}

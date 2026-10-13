@@ -1,0 +1,58 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Boston lists 6 request types on its production endpoint: Street Outreach & Encampments, Other, Illegal Parking, Abandoned Vehicle, Rodent Sighting, Abandoned Bicycle."
+    }
+  ],
+  "structuredContent": {
+    "city": "boston",
+    "endpoint": "production",
+    "count": 6,
+    "services": [
+      {
+        "service_code": "8638e79a-2a0a-4d3a-9624-792ec40b0691",
+        "service_name": "Street Outreach & Encampments",
+        "metadata": true,
+        "type": "batch",
+        "group": "Street Outreach & Encampments"
+      },
+      {
+        "service_code": "fdd312ca-bb42-4ce7-9409-8bf86c9c010b",
+        "service_name": "Other",
+        "metadata": false,
+        "type": "batch",
+        "group": "General"
+      },
+      {
+        "service_code": "Transportation - Traffic Division:Enforcement & Abandoned Vehicles:Parking Enforcement",
+        "service_name": "Illegal Parking",
+        "metadata": false,
+        "type": "batch",
+        "group": "Vehicle/Parking"
+      },
+      {
+        "service_code": "Transportation - Traffic Division:Enforcement & Abandoned Vehicles:Abandoned Vehicles",
+        "service_name": "Abandoned Vehicle",
+        "metadata": true,
+        "type": "batch",
+        "group": "Vehicle/Parking"
+      },
+      {
+        "service_code": "input.Rodent Sighting",
+        "service_name": "Rodent Sighting",
+        "metadata": true,
+        "type": "batch",
+        "group": "Health Hazards"
+      },
+      {
+        "service_code": "Mayor's 24 Hour Hotline:Abandoned Bicycle:Abandoned Bicycle",
+        "service_name": "Abandoned Bicycle",
+        "metadata": false,
+        "type": "batch",
+        "group": "Vehicle/Parking"
+      }
+    ],
+    "as_of": "2026-10-13T07:15:10.347Z"
+  }
+}

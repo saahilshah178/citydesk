@@ -183,6 +183,16 @@ describe('single request lookup', () => {
     expect(calls[0]!.url.pathname).toBe(`/open311/v2/requests/${expected.service_request_id}.json`);
   });
 
+  it('looks up several IDs in one call and ignores rows it did not ask for', async () => {
+    const page = fixtureJson<Array<{ service_request_id: string }>>('boston/requests_page1.json');
+    const wanted = [page[0]!.service_request_id, page[1]!.service_request_id, 'missing-id'];
+    const { c, calls } = client(BOSTON, [() => jsonResponse(fixture('boston/requests_page1.json'))]);
+    const found = await c.getRequests(wanted);
+    expect(found.map((r) => r.service_request_id).sort()).toEqual(wanted.slice(0, 2).sort());
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.url.searchParams.get('service_request_id')).toBe(wanted.join(','));
+  });
+
   it('returns undefined for an unknown ID', async () => {
     const { c } = client(BOSTON, [
       () => jsonResponse([{ code: 404, description: 'Service request not found with id or token 0000' }], 404),
@@ -199,6 +209,20 @@ describe('rate limiting and retries', () => {
     expect(calls).toHaveLength(4);
     // Three calls went straight through; the fourth waited for the window to slide.
     expect(time.sleeps).toEqual([60_000]);
+  });
+
+  it('fails fast with rate_limited instead of waiting when the caller sets a wait budget', async () => {
+    const city: CityConfig = { ...BOSTON, production: { ...BOSTON.production!, rateLimitPerMinute: 2 } };
+    const net = fakeFetch(() => jsonResponse([]));
+    const time = fakeTime();
+    const c = new Open311Client(city, { fetch: net.fetch, env: {}, now: time.now, sleep: time.sleep, limiters: new Map(), maxRateLimitWaitMs: 2000 });
+    await c.listServices();
+    await c.listServices();
+    const err = await c.listServices().catch((e: unknown) => e);
+    expect(err).toMatchObject({ code: 'rate_limited', retryable: true });
+    expect((err as Open311Error).details).toMatchObject({ retry_after_ms: 60_000 });
+    expect(net.calls).toHaveLength(2);
+    expect(time.sleeps).toEqual([]);
   });
 
   it('retries a GET after a 503 and after a network failure', async () => {

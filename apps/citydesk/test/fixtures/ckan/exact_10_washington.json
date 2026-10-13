@@ -1,0 +1,47 @@
+{
+ "success": true,
+ "result": {
+  "records": [
+   {
+    "_id": 127381,
+    "sam_address_id": "145775",
+    "full_address": "10 Washington St",
+    "mailing_neighborhood": "Charlestown",
+    "state": "MA",
+    "zip_code": "02129",
+    "x_coord": "-71.06367000100919",
+    "y_coord": "42.37263999994411",
+    "recollect": "W1A",
+    "trashday": "W",
+    "pwd_district": "1A"
+   },
+   {
+    "_id": 127462,
+    "sam_address_id": "145890",
+    "full_address": "10 Washington St",
+    "mailing_neighborhood": "Dorchester",
+    "state": "MA",
+    "zip_code": "02121",
+    "x_coord": "-71.08270000113627",
+    "y_coord": "42.308309999534025",
+    "recollect": "M",
+    "trashday": "M",
+    "pwd_district": "3"
+   },
+   {
+    "_id": 394316,
+    "sam_address_id": "439224",
+    "full_address": "10 Washington St",
+    "mailing_neighborhood": "Hyde Park",
+    "state": "MA",
+    "zip_code": "02136",
+    "x_coord": "-71.11789000172665",
+    "y_coord": "42.24703000035011",
+    "recollect": "M",
+    "trashday": "M",
+    "pwd_district": "8"
+   }
+  ],
+  "total": 3
+ }
+}

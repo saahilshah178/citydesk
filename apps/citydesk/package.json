@@ -12,6 +12,11 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1149.0",
+    "@aws-sdk/client-geo-maps": "^3.1149.0",
+    "@aws-sdk/client-location": "^3.1149.0",
+    "@aws-sdk/client-ssm": "^3.1149.0",
+    "@aws-sdk/lib-dynamodb": "^3.1149.0",
     "@modelcontextprotocol/server": "^2.3.1",
     "open311-mcp": "workspace:*",
     "zod": "^4.6.7"

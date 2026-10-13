@@ -1,0 +1,18 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Filed in the Sandbox City sandbox (sandbox) with ID SB-43655."
+    }
+  ],
+  "structuredContent": {
+    "city": "sandbox-city",
+    "endpoint": "test",
+    "endpoint_id": "sandbox",
+    "sandbox": true,
+    "service_request_id": "SB-43655",
+    "token": "b203076d-12c6-48b8-bdf7-50e16182bacb",
+    "service_notice": "Filed in the open311-mcp sandbox. Nothing was sent to a real city.",
+    "created_at": "2026-10-13T07:15:13.611Z"
+  }
+}

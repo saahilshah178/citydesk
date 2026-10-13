@@ -30,3 +30,9 @@ export type {
   ServiceDefinition,
   ServiceRequest,
 } from './types.ts';
+export { createMcpHttpHandler, staticTokenVerifier } from './http.ts';
+export type { McpHttpHandler, McpHttpOptions } from './http.ts';
+export { toNodeListener, toFunctionUrlHandler } from './adapters.ts';
+export type { FetchHandler, FunctionUrlEvent, FunctionUrlResult } from './adapters.ts';
+export { createOpen311Server, toolError, SERVER_NAME, SERVER_VERSION } from './server.ts';
+export type { Open311ServerOptions } from './server.ts';
