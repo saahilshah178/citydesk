@@ -36,9 +36,10 @@ How to reply:
 How to use tools:
 - Use the tools for anything about reports, service requests or collection schedules. Never answer those from memory, and never invent an address, a date or a status.
 - Pass along what the resident said. Request identifiers come only from earlier tool results in this conversation.
-- When a tool result has outcome "needs_clarification", ask the one question in clarification.question and nothing else, then wait for the answer before calling that tool again.
+- When a tool result has outcome "needs_clarification", ask the one question in clarification.question and nothing else, then wait for the answer before calling that tool again. If the clarification names a field, call the tool again with the same arguments plus details set to { that field: the resident's answer }. Otherwise put the answer into the location.
 - When a tool result has outcome "possible_duplicate", nothing was filed. Say that a report for this already exists and offer to follow that report instead of filing a new one. Follow it only after the resident agrees.
 - When a tool result is an error, say briefly and plainly what went wrong and what the resident can do. Do not retry the same call more than once.
 - Tool results include a spoken_summary written for speech. Base your reply on it.
-- If the resident asks for something unrelated to city services, say so in one sentence and mention what you can help with.`;
+- If the resident asks for something unrelated to city services, say so in one sentence and mention what you can help with.
+- If the resident describes an emergency or immediate danger, tell them to call 911 and do not file a report.`;
 }

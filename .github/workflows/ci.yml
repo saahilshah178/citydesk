@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Typecheck, test, synth
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      - run: pnpm typecheck
+
+      # No test touches the network: every upstream is a recorded fixture or a fake.
+      - run: pnpm test
+
+      # Synthesizes the CloudFormation template and bundles both Lambda handlers. Needs no AWS
+      # credentials; the model ID only has to be well formed.
+      - name: CDK synth and bundle check
+        env:
+          BEDROCK_MODEL_ID: example.test-model-v1:0
+        run: |
+          cd infra && node_modules/.bin/cdk synth --quiet && cd ..
+          node scripts/check_bundles.mjs
