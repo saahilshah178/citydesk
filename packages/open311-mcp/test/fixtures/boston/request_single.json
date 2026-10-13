@@ -1,0 +1,15 @@
+[
+  {
+    "service_request_id": "101006763545",
+    "status": "open",
+    "service_name": "Illegal Parking",
+    "service_code": "Transportation - Traffic Division:Enforcement & Abandoned Vehicles:Parking Enforcement",
+    "description": "[resident description removed from fixture]",
+    "requested_datetime": "2026-10-13T06:58:00Z",
+    "updated_datetime": "2026-10-13T07:00:38Z",
+    "address": "78 Weaver Way, Unit B, Roxbury",
+    "lat": 42.32144,
+    "long": -71.09638,
+    "token": "0c1d308b-ebcf-4f71-8be1-adf00bcd1436"
+  }
+]

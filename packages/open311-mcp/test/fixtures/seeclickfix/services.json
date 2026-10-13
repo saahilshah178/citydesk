@@ -1,0 +1,92 @@
+[
+  {
+    "service_name": "Graffiti",
+    "organization": "Gaurav NHC",
+    "service_code": 10044,
+    "description": null,
+    "metadata": true,
+    "type": "realtime",
+    "keywords": null,
+    "group": null
+  },
+  {
+    "service_name": "Pothole",
+    "organization": "New Haven",
+    "service_code": 10407,
+    "description": null,
+    "metadata": false,
+    "type": "realtime",
+    "keywords": null,
+    "group": null
+  },
+  {
+    "service_name": "Illegal Dumping",
+    "organization": "Pat Haven",
+    "service_code": 10347,
+    "description": null,
+    "metadata": false,
+    "type": "realtime",
+    "keywords": null,
+    "group": null
+  },
+  {
+    "service_name": "Other",
+    "organization": "Pat Haven",
+    "service_code": 10356,
+    "description": null,
+    "metadata": false,
+    "type": "realtime",
+    "keywords": null,
+    "group": null
+  },
+  {
+    "service_name": "Other",
+    "organization": "Town",
+    "service_code": 9747,
+    "description": null,
+    "metadata": false,
+    "type": "realtime",
+    "keywords": null,
+    "group": null
+  },
+  {
+    "service_name": "Light Bulb",
+    "organization": "New Haven Issues",
+    "service_code": 8643,
+    "description": null,
+    "metadata": true,
+    "type": "realtime",
+    "keywords": null,
+    "group": null
+  },
+  {
+    "service_name": "Street Light",
+    "organization": "Experiment, Post to Neighbors Zone",
+    "service_code": 10639,
+    "description": null,
+    "metadata": true,
+    "type": "realtime",
+    "keywords": null,
+    "group": null
+  },
+  {
+    "service_name": "Flickering Streetlights",
+    "organization": "Agency B",
+    "service_code": 10948,
+    "description": null,
+    "metadata": false,
+    "type": "realtime",
+    "keywords": null,
+    "group": null
+  },
+  {
+    "service_name": "Missed Trash Pickup",
+    "organization": "Circus: The Big Tent",
+    "service_code": 8685,
+    "description": null,
+    "metadata": false,
+    "type": "realtime",
+    "keywords": null,
+    "group": null
+  }
+]

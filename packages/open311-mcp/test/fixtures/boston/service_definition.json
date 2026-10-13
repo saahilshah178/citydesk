@@ -1,0 +1,77 @@
+{
+  "service_code": "8638e79a-2a0a-4d3a-9624-792ec40b0691",
+  "attributes": [
+    {
+      "variable": true,
+      "code": "BOSIsIllicitSubstanceUseId",
+      "datatype": "singlevaluelist",
+      "required": true,
+      "order": 1,
+      "description": "Is there Illicit substance use?",
+      "values": [
+        {
+          "key": "801fa657-2584-4ee7-b577-6d87c909d337",
+          "name": "Yes"
+        },
+        {
+          "key": "be13e3e4-bf04-4e91-9aa5-b311e3252869",
+          "name": "No"
+        }
+      ]
+    },
+    {
+      "variable": true,
+      "code": "BOSAreNeedlesPresentId",
+      "datatype": "singlevaluelist",
+      "required": true,
+      "order": 2,
+      "description": "Are there needles present?",
+      "values": [
+        {
+          "key": "801fa657-2584-4ee7-b577-6d87c909d337",
+          "name": "Yes"
+        },
+        {
+          "key": "be13e3e4-bf04-4e91-9aa5-b311e3252869",
+          "name": "No"
+        }
+      ]
+    },
+    {
+      "variable": true,
+      "code": "BOSArePeoplePresentId",
+      "datatype": "singlevaluelist",
+      "required": true,
+      "order": 3,
+      "description": "Are there people present? ",
+      "values": [
+        {
+          "key": "801fa657-2584-4ee7-b577-6d87c909d337",
+          "name": "Yes"
+        },
+        {
+          "key": "be13e3e4-bf04-4e91-9aa5-b311e3252869",
+          "name": "No"
+        }
+      ]
+    },
+    {
+      "variable": true,
+      "code": "BOSIsAggressiveBehaviorEncounteredId",
+      "datatype": "singlevaluelist",
+      "required": true,
+      "order": 4,
+      "description": "Are you encountering aggressive behavior?",
+      "values": [
+        {
+          "key": "801fa657-2584-4ee7-b577-6d87c909d337",
+          "name": "Yes"
+        },
+        {
+          "key": "be13e3e4-bf04-4e91-9aa5-b311e3252869",
+          "name": "No"
+        }
+      ]
+    }
+  ]
+}

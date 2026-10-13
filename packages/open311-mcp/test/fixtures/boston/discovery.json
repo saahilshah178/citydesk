@@ -1,0 +1,27 @@
+{
+  "changeset": "2022-11-01T00:00:00Z",
+  "contact": "Contact noreply@spotmobile.io for assistance",
+  "key_service": "Visit https://boston2-production.spotmobile.net/open311/app_requests/new to request an API key",
+  "endpoints": [
+    {
+      "specification": "http://wiki.open311.org/GeoReport_v2",
+      "url": "https://boston2-production.spotmobile.net/open311/v2",
+      "changeset": "2022-11-01T00:00:00Z",
+      "type": "production",
+      "formats": [
+        "text/xml",
+        "application/json"
+      ]
+    },
+    {
+      "specification": "http://wiki.open311.org/GeoReport_v2",
+      "url": "https://boston2-test.spotmobile.net/open311/v2",
+      "changeset": "2022-11-01T00:00:00Z",
+      "type": "test",
+      "formats": [
+        "text/xml",
+        "application/json"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,139 @@
+{
+  "service_code": 10044,
+  "attributes": [
+    {
+      "answer_kept_private": true,
+      "code": "10188",
+      "required": true,
+      "order": 1,
+      "description": "Is the graffiti artistic or ugly?",
+      "datatype_description": null,
+      "variable": true,
+      "datatype": "singlevaluelist",
+      "values": [
+        {
+          "key": "1",
+          "name": "Artistic"
+        },
+        {
+          "key": "2",
+          "name": "Ugly"
+        }
+      ]
+    },
+    {
+      "answer_kept_private": true,
+      "code": "10189",
+      "required": false,
+      "order": 2,
+      "description": "What colors are the graffiti?",
+      "datatype_description": null,
+      "variable": true,
+      "datatype": "multivaluelist",
+      "values": [
+        {
+          "key": "1",
+          "name": "Red"
+        },
+        {
+          "key": "2",
+          "name": "Green"
+        },
+        {
+          "key": "3",
+          "name": "Blue"
+        },
+        {
+          "key": "4",
+          "name": "Yellow"
+        },
+        {
+          "key": "5",
+          "name": "Orange"
+        },
+        {
+          "key": "6",
+          "name": "Violet"
+        },
+        {
+          "key": "7",
+          "name": "Gray"
+        },
+        {
+          "key": "8",
+          "name": "Black"
+        },
+        {
+          "key": "9",
+          "name": "White"
+        }
+      ]
+    },
+    {
+      "answer_kept_private": true,
+      "code": "10190",
+      "required": false,
+      "order": 3,
+      "description": "Does the graffiti have any legible text? Please write what it says.",
+      "datatype_description": null,
+      "variable": true,
+      "datatype": "string",
+      "values": null
+    },
+    {
+      "answer_kept_private": true,
+      "code": "10191",
+      "required": false,
+      "order": 4,
+      "description": "Describe the graffit",
+      "datatype_description": null,
+      "variable": true,
+      "datatype": "text",
+      "values": null
+    },
+    {
+      "answer_kept_private": true,
+      "code": "10192",
+      "required": false,
+      "order": 5,
+      "description": "Do you know when it was created?",
+      "datatype_description": null,
+      "variable": true,
+      "datatype": "datetime",
+      "values": null
+    },
+    {
+      "answer_kept_private": true,
+      "code": "10193",
+      "required": false,
+      "order": 6,
+      "description": "Describe in more detail?",
+      "datatype_description": null,
+      "variable": false,
+      "datatype": "string",
+      "values": null
+    },
+    {
+      "answer_kept_private": true,
+      "code": "10194",
+      "required": false,
+      "order": 7,
+      "description": "How big?",
+      "datatype_description": null,
+      "variable": true,
+      "datatype": "number",
+      "values": null
+    },
+    {
+      "answer_kept_private": true,
+      "code": "10650",
+      "required": false,
+      "order": 8,
+      "description": "This is a message\r\n\r\nwith newlines\r\n\r\n      and indentation",
+      "datatype_description": null,
+      "variable": false,
+      "datatype": "string",
+      "values": null
+    }
+  ]
+}
