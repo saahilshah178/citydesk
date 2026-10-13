@@ -9,7 +9,9 @@
     "dev": "tsx watch src/dev.ts",
     "start": "tsx src/dev.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:cards": "tsc -p cards/tsconfig.json --noEmit && tsx cards/build.ts",
+    "preview:cards": "tsx src/cards/preview-server.ts"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1149.0",
@@ -17,6 +19,7 @@
     "@aws-sdk/client-location": "^3.1149.0",
     "@aws-sdk/client-ssm": "^3.1149.0",
     "@aws-sdk/lib-dynamodb": "^3.1149.0",
+    "@modelcontextprotocol/ext-apps": "^2.0.3",
     "@modelcontextprotocol/server": "^2.3.1",
     "open311-mcp": "workspace:*",
     "zod": "^4.6.7"
@@ -24,6 +27,7 @@
   "devDependencies": {
     "@modelcontextprotocol/client": "^2.3.1",
     "@types/node": "^24.0.0",
+    "esbuild": "^0.28.2",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.0.4"
