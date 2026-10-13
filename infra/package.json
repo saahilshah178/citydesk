@@ -1,0 +1,32 @@
+{
+  "name": "@citydesk/infra",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AWS CDK stack for CityDesk: DynamoDB, Amazon Location, two Lambda Function URLs, S3 + CloudFront, SSM parameters.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "cdk": "cdk",
+    "synth": "cdk synth --quiet",
+    "preflight": "tsx scripts/preflight.ts",
+    "params:ensure": "tsx scripts/ensure-params.ts",
+    "params:delete": "tsx scripts/delete-params.ts",
+    "bootstrap": "tsx scripts/bootstrap.ts",
+    "deploy": "cdk deploy --require-approval never --outputs-file ../results/deploy-outputs.json",
+    "destroy": "cdk destroy --force"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-ssm": "^3.1149.0",
+    "@aws-sdk/client-sts": "^3.1149.0",
+    "@types/node": "^24.0.0",
+    "aws-cdk": "^2.1145.0",
+    "aws-cdk-lib": "^2.273.0",
+    "constructs": "^10.8.1",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.4"
+  }
+}
