@@ -22,7 +22,7 @@ mini-challenges.
 
 | | |
 | --- | --- |
-| MCP server, six tools, cards, web client | Built and tested: 421 automated tests, plus runs against live Boston data |
+| MCP server, six tools, cards, web client | Built and tested: 422 automated tests, plus runs against live Boston data |
 | Server side of the demo conversation | Passes end to end against live data ([`results/conversation.tools-only.json`](results/conversation.tools-only.json)) |
 | Deployable bundles | `cdk synth` succeeds and both Lambda bundles start and serve locally ([`results/bundle_check.json`](results/bundle_check.json)) |
 | Bedrock assistant, Polly speech, Amazon Location, DynamoDB, the AWS deployment | **Written and unit-tested, not yet run against AWS.** The build machine had no AWS credentials. `pnpm smoke` reports this on every run |
@@ -225,15 +225,15 @@ Seven tool calls over a real MCP connection against live Boston data, with a sec
 seconds later: the pothole report returned Boston's existing request, the streetlight report asked
 its one question and was filed in the sandbox, the second session remembered both requests and
 reported that the sandbox one had been assigned, and the trash schedule came back. All seven outcomes
-were as expected. Tool calls answered from the local index, the sandbox or a warm cache took 3 to 5
-ms; calls that reach Boston took 279 and 442 ms; a duplicate check with a cold cache, which downloads
-Boston's open list afresh, took 1,267 ms.
+were as expected. Tool calls answered from the local index, the sandbox or a warm cache took 3 to 10
+ms; calls that reach Boston took 84 and 507 ms; a duplicate check with a cold cache, which downloads
+Boston's open list afresh, took 1,209 ms.
 
 **Other runs**
 
 | What | Result | Saved in |
 | --- | --- | --- |
-| Automated tests (no network) | 421 of 421 pass in 30 files | [`results/tests.json`](results/tests.json) |
+| Automated tests (no network) | 422 of 422 pass in 30 files | [`results/tests.json`](results/tests.json) |
 | MCP Inspector, manual pass | Both servers: tools/list and 9 tool calls, including a structured error | [`results/inspector/`](results/inspector) |
 | Cards in the ext-apps `basic-host` | Both cards, 17 states, at 768x480 and 1280x800 | [`results/cards/`](results/cards) |
 | Cards in our client, live data | Issue card and schedule card | [`results/integration/`](results/integration) |
@@ -259,8 +259,9 @@ Boston's open list afresh, took 1,267 ms.
   before following.
 - **Without Amazon Location, only street addresses are understood** (from Boston's address records).
   Landmarks and intersections need the place index.
-- **Speed.** Alexa+ guidance is a round trip under 500 ms. Calls that reach Boston's API take about
-  0.3 s warm and longer cold; the server caches Boston's open list for two minutes to stay close.
+- **Speed.** Alexa+ guidance is a round trip under 500 ms. In our runs, calls that reach Boston's API
+  took 0.1 to 0.5 s, and a duplicate check that has to download Boston's open list took 1.2 s; the
+  server caches that list for two minutes to stay close.
 - **Boston's API allows about 10 requests a minute without a key**, and its public hostname answers
   heavier use with a challenge page. The server uses the endpoint the discovery file lists, limits
   itself, and fails fast with a retryable error instead of queueing.

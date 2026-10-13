@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-10-13T08:20:30.963Z",
+  "ranAt": "2026-10-13T08:40:22.004Z",
   "what_this_is": "The demo conversation at the tool level, with no model involved: the script chose each tool call. It shows the server half works end to end against live data.",
   "server": {
     "url": "http://localhost:8787/mcp",
@@ -10,9 +10,9 @@
     },
     "protocol_version": "2025-11-25"
   },
-  "device_id": "f13dca2a-3f27-4831-ad26-9aa6e8460a66",
+  "device_id": "bca2d862-59f2-46bd-b549-7478569af28c",
   "places": {
-    "checkedAt": "2026-10-13T08:18:18.672Z",
+    "checkedAt": "2026-10-13T08:38:10.167Z",
     "server": "http://localhost:8787/mcp",
     "open_potholes_last_14_days": 122,
     "pothole": {
@@ -24,9 +24,9 @@
       "has_photo": true
     },
     "streetlight": {
-      "say": "The streetlight outside 4 Jersey Street is out.",
-      "location": "4 Jersey Street",
-      "resolved": "4 Jersey St, Boston, MA 02215"
+      "say": "The streetlight outside 100 Huntington Avenue is out.",
+      "location": "100 Huntington Avenue",
+      "resolved": "100 Huntington Ave, Boston, MA 02116"
     },
     "trash": {
       "say": "When does trash go out at 700 Boylston Street?",
@@ -51,7 +51,7 @@
       "request_ids": [
         "boston/230de6e8-323c-4e72-b8bc-59ff934edf77"
       ],
-      "duration_ms": 4,
+      "duration_ms": 10,
       "pass": true
     },
     {
@@ -68,7 +68,7 @@
       "request_ids": [
         "boston/230de6e8-323c-4e72-b8bc-59ff934edf77"
       ],
-      "duration_ms": 279,
+      "duration_ms": 84,
       "pass": true
     },
     {
@@ -78,7 +78,7 @@
       "arguments": {
         "issue_type": "streetlight",
         "description": "There is a problem with the streetlight.",
-        "location": "4 Jersey Street"
+        "location": "100 Huntington Avenue"
       },
       "expected_outcome": "needs_clarification",
       "outcome": "needs_clarification",
@@ -95,7 +95,7 @@
       "arguments": {
         "issue_type": "streetlight",
         "description": "There is a problem with the streetlight.",
-        "location": "4 Jersey Street",
+        "location": "100 Huntington Avenue",
         "details": {
           "light_condition": "It's flickering"
         }
@@ -103,11 +103,11 @@
       "expected_outcome": "filed",
       "outcome": "filed",
       "is_error": false,
-      "spoken_summary": "Done. I filed your streetlight outage report for 4 Jersey St in the CityDesk sandbox, reference SB-94019. It is a test system, so nothing was sent to the city, and I will remember it when you ask about your requests.",
+      "spoken_summary": "Done. I filed your streetlight outage report for 100 Huntington Ave in the CityDesk sandbox, reference SB-81305. It is a test system, so nothing was sent to the city, and I will remember it when you ask about your requests.",
       "request_ids": [
-        "citydesk-sandbox/SB-94019"
+        "citydesk-sandbox/SB-81305"
       ],
-      "duration_ms": 3,
+      "duration_ms": 6,
       "pass": true
     },
     {
@@ -118,12 +118,12 @@
       "expected_outcome": "requests",
       "outcome": "requests",
       "is_error": false,
-      "spoken_summary": "You have 2 requests, and one has changed since you last checked. Your street light outage report at 4 Jersey St has an update. The latest note says: Assigned to a Street Lighting crew. (Simulated by the CityDesk sandbox.) The pothole report at 617 E Third St is still open.",
+      "spoken_summary": "You have 2 requests, and one has changed since you last checked. Your street light outage report at 100 Huntington Ave has an update. The latest note says: Assigned to a Street Lighting crew. (Simulated by the CityDesk sandbox.) The pothole report at 617 E Third St is still open.",
       "request_ids": [
-        "citydesk-sandbox/SB-94019",
+        "citydesk-sandbox/SB-81305",
         "boston/230de6e8-323c-4e72-b8bc-59ff934edf77"
       ],
-      "duration_ms": 442,
+      "duration_ms": 507,
       "pass": true
     },
     {
@@ -141,7 +141,7 @@
       "request_ids": [
         "boston/230de6e8-323c-4e72-b8bc-59ff934edf77"
       ],
-      "duration_ms": 1267,
+      "duration_ms": 1209,
       "pass": true
     },
     {
@@ -156,7 +156,7 @@
       "is_error": false,
       "spoken_summary": "At 700 Boylston St, trash and recycling are both picked up on Mondays and Thursdays. The next pickup is this Thursday, October 15th.",
       "request_ids": [],
-      "duration_ms": 5,
+      "duration_ms": 4,
       "pass": true
     }
   ],
@@ -174,16 +174,16 @@
   "tool_latency_ms": {
     "note": "Calls that reach Boston take a few hundred milliseconds; a duplicate check right after the place finder ran reuses a cached list; the cold-cache step shows the uncached cost.",
     "min": 3,
-    "median": 5,
-    "max": 1267,
+    "median": 10,
+    "max": 1209,
     "by_step": {
-      "1:report_issue:possible_duplicate": 4,
-      "1:follow_request:followed": 279,
+      "1:report_issue:possible_duplicate": 10,
+      "1:follow_request:followed": 84,
       "1:report_issue:needs_clarification": 3,
-      "1:report_issue:filed": 3,
-      "2:my_requests:requests": 442,
-      "2:find_nearby_reports:nearby": 1267,
-      "2:collection_schedule:schedule": 5
+      "1:report_issue:filed": 6,
+      "2:my_requests:requests": 507,
+      "2:find_nearby_reports:nearby": 1209,
+      "2:collection_schedule:schedule": 4
     }
   },
   "total_seconds": 132,

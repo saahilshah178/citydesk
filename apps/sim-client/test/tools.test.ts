@@ -82,3 +82,32 @@ describe('toToolConfig', () => {
     expect(mcpNameFor.get('x'.repeat(64))).toBe('x'.repeat(80));
   });
 });
+
+describe('tool schemas sent to Bedrock', () => {
+  it('keep only type, properties and required at the top level, and leave property schemas alone', async () => {
+    const { toToolConfig } = await import('../src/assistant/tools.ts');
+    const { toolConfig } = toToolConfig([
+      {
+        name: 'report_issue',
+        description: 'Report.',
+        inputSchema: {
+          $schema: 'https://json-schema.org/draft/2020-12/schema',
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            issue_type: { type: 'string', enum: ['pothole', 'streetlight'] },
+            details: { type: 'object', additionalProperties: { type: 'string' } },
+          },
+          required: ['issue_type'],
+        },
+      },
+      { name: 'my_requests', description: 'List.', inputSchema: { type: 'object', properties: {}, additionalProperties: false } },
+    ]);
+    const [report, mine] = toolConfig!.tools.map((t) => t.toolSpec.inputSchema.json as Record<string, unknown>);
+    expect(Object.keys(report!).sort()).toEqual(['properties', 'required', 'type']);
+    expect(report!.required).toEqual(['issue_type']);
+    expect((report!.properties as Record<string, unknown>).details).toEqual({ type: 'object', additionalProperties: { type: 'string' } });
+    // No required list is sent when nothing is required.
+    expect(mine).toEqual({ type: 'object', properties: {} });
+  });
+});

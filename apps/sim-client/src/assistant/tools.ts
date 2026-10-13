@@ -46,9 +46,16 @@ function toInputSchema(schema: unknown): Record<string, unknown> {
   if (typeof schema !== 'object' || schema === null || Array.isArray(schema)) {
     return { type: 'object', properties: {} };
   }
-  // `$schema` is an annotation Converse models do not need, and some reject unknown dialect URIs.
-  const { $schema: _dialect, ...rest } = schema as Record<string, unknown>;
-  return { ...rest, type: 'object' };
+  // Converse models differ in how much JSON Schema they accept at the top level of a tool schema;
+  // the three keys every one of them documents are type, properties and required. Annotations such
+  // as `$schema` and `additionalProperties` are dropped here. The MCP server still validates the
+  // arguments against its full schema when the tool is called.
+  const { properties, required } = schema as { properties?: unknown; required?: unknown };
+  return {
+    type: 'object',
+    properties: typeof properties === 'object' && properties !== null && !Array.isArray(properties) ? properties : {},
+    ...(Array.isArray(required) && required.length > 0 ? { required } : {}),
+  };
 }
 
 export interface ConverseTools {
