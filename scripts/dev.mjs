@@ -23,7 +23,8 @@ const processes = [
   { name: 'client', color: 33, cwd: 'apps/sim-client', args: ['exec', 'vite', '--port', '5173', '--strictPort'] },
 ];
 
-const children = processes.map(({ name, color, cwd, args }) => {
+const children = [];
+function start({ name, color, cwd, args }) {
   const child = spawn('pnpm', args, { cwd: resolve(root, cwd), env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
   const tag = `\u001b[${color}m${name.padEnd(6)}\u001b[0m `;
   for (const stream of [child.stdout, child.stderr]) {
@@ -39,8 +40,20 @@ const children = processes.map(({ name, color, cwd, args }) => {
     // One process going down makes the whole thing useless: stop the rest.
     stop(code ?? 0);
   });
-  return child;
-});
+  children.push(child);
+}
+
+/** Resolves once a URL answers, or after `seconds` either way. */
+async function ready(url, seconds = 20) {
+  for (let i = 0; i < seconds * 4; i++) {
+    try {
+      await fetch(url, { signal: AbortSignal.timeout(1000) });
+      return;
+    } catch {
+      await new Promise((r) => setTimeout(r, 250));
+    }
+  }
+}
 
 let stopping = false;
 function stop(code = 0) {
@@ -51,4 +64,15 @@ function stop(code = 0) {
 }
 process.on('SIGINT', () => stop(0));
 process.on('SIGTERM', () => stop(0));
-console.log('CityDesk: open http://localhost:5173/?dev once the three processes are up.\n');
+// The web client is started last, so the page never loads before the things it talks to.
+const [server, api, client] = processes;
+start(server);
+start(api);
+await Promise.all([
+  ready(`http://localhost:${process.env.PORT ?? 8787}/healthz`),
+  ready('http://localhost:8788/api/config'),
+]);
+if (!stopping) {
+  start(client);
+  console.log('\nCityDesk is up: open http://localhost:5173/?dev (the developer drawer shows the live MCP traffic).\n');
+}

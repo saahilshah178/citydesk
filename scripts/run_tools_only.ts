@@ -118,7 +118,11 @@ const memoryHeld = remembered.has(existing) && filedId !== undefined && remember
 const filedNow = (mine.requests ?? []).find((r) => r.request_id === filedId);
 // By now the server's two-minute cache of Boston's open requests has expired, so this duplicate
 // check pays for a fresh download: the slowest a tool call normally gets.
-await call<IssueResult>(client, 2, 'Duplicate check with a cold cache (fresh download from Boston)', 'find_nearby_reports', {
+const coldLabel =
+  waitSeconds > 120
+    ? 'Duplicate check with a cold cache (fresh download from Boston)'
+    : 'Duplicate check again (cache still warm: the wait was under two minutes)';
+await call<IssueResult>(client, 2, coldLabel, 'find_nearby_reports', {
   issue_type: 'pothole',
   location: places.pothole.location,
 }, 'nearby');

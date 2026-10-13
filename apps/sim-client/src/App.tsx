@@ -110,6 +110,9 @@ export function App() {
       await previous?.close().catch(() => undefined);
 
       try {
+        // Declared before the call: the transport can report a close while connect() is still
+        // running (the server is down), and the callbacks must not touch an uninitialized binding.
+        let session: McpSession | undefined;
         const next = await McpSession.connect({
           url,
           // The token belongs to the configured server. It is never sent to another URL.
@@ -117,12 +120,13 @@ export function App() {
           deviceId: current.deviceId,
           log,
           onToolsChanged: (list) => {
-            if (sessionRef.current === next) setTools(list);
+            if (session !== undefined && sessionRef.current === session) setTools(list);
           },
           onClose: () => {
-            if (sessionRef.current === next) setConnection({ state: 'closed', url });
+            if (session !== undefined && sessionRef.current === session) setConnection({ state: 'closed', url });
           },
         });
+        session = next;
         if (attempt !== connectSeq.current) {
           await next.close().catch(() => undefined);
           return;
