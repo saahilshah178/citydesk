@@ -3,7 +3,8 @@
  *
  *   pk = USER#<userId>   sk = REQ#<request_id>     a request the user filed or follows
  *   pk = USER#<userId>   sk = PROFILE#home         the home address they last asked about
- *   pk = SANDBOX         sk = REQ#<id>             a request held by the built-in Open311 sandbox
+ *   pk = SANDBOX         sk = T#<filed ms>#<id>    a sandbox request, ordered by filing time
+ *   pk = SANDBOXID       sk = <id>                 the same request, for lookups by ID
  *   pk = COUNTER         sk = <name>               an hourly filing counter (see UserStore.increment)
  *
  * Items carry a `ttl` (epoch seconds) so demo data expires on its own.
@@ -16,6 +17,7 @@ import type { HomeAddress, TrackedRequest, UserStore } from './types.ts';
 const USER_TTL_DAYS = 180;
 const SANDBOX_TTL_DAYS = 90;
 const SANDBOX_PK = 'SANDBOX';
+const SANDBOX_ID_PK = 'SANDBOXID';
 
 export interface DynamoStoreOptions {
   tableName: string;
@@ -149,39 +151,51 @@ export class DynamoStore implements UserStore {
     return Number(out.Attributes?.n ?? 1);
   }
 
-  /** The Open311 sandbox keeps its requests in the same table, so they survive across Lambda instances. */
+  /**
+   * The Open311 sandbox keeps its requests in the same table, so they survive across Lambda
+   * instances. Each request is written twice: once keyed by filing time, so "recent requests" is a
+   * range query that reads only what it returns, and once keyed by ID for direct lookups. Records
+   * never change after filing (the lifecycle is computed on read), so the copies cannot diverge.
+   */
   sandboxStore(): SandboxStore {
+    const timeKey = (ms: number, id = ''): string => `T#${String(Math.max(0, Math.floor(ms))).padStart(15, '0')}#${id}`;
     return {
       put: async (record) => {
+        const ttl = this.ttl(SANDBOX_TTL_DAYS);
+        await this.doc.send(
+          new PutCommand({ TableName: this.table, Item: { pk: SANDBOX_ID_PK, sk: record.service_request_id, ttl, ...record } }),
+        );
         await this.doc.send(
           new PutCommand({
             TableName: this.table,
-            Item: { pk: SANDBOX_PK, sk: `REQ#${record.service_request_id}`, ttl: this.ttl(SANDBOX_TTL_DAYS), ...record },
+            Item: { pk: SANDBOX_PK, sk: timeKey(record.requested_at, record.service_request_id), ttl, ...record },
           }),
         );
       },
       get: async (id) => {
-        const out = await this.doc.send(
-          new GetCommand({ TableName: this.table, Key: { pk: SANDBOX_PK, sk: `REQ#${id}` } }),
-        );
+        const out = await this.doc.send(new GetCommand({ TableName: this.table, Key: { pk: SANDBOX_ID_PK, sk: id } }));
         return out.Item ? stripKeys<SandboxRequestRecord>(out.Item) : undefined;
       },
-      list: async () => {
+      list: async (options = {}) => {
+        const limit = options.limit ?? 900;
         const records: SandboxRequestRecord[] = [];
         let startKey: Record<string, unknown> | undefined;
         do {
           const page = await this.doc.send(
             new QueryCommand({
               TableName: this.table,
-              KeyConditionExpression: 'pk = :pk',
-              ExpressionAttributeValues: { ':pk': SANDBOX_PK },
+              KeyConditionExpression: 'pk = :pk AND sk >= :from',
+              ExpressionAttributeValues: { ':pk': SANDBOX_PK, ':from': timeKey(options.since ?? 0) },
+              // Newest first, and never more than the caller asked for.
+              ScanIndexForward: false,
+              Limit: limit - records.length,
               ExclusiveStartKey: startKey,
             }),
           );
           for (const item of page.Items ?? []) records.push(stripKeys<SandboxRequestRecord>(item));
           startKey = page.LastEvaluatedKey;
-        } while (startKey);
-        return records;
+        } while (startKey && records.length < limit);
+        return records.slice(0, limit);
       },
     };
   }

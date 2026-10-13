@@ -7,7 +7,7 @@
  *   CITYDESK_STATIC_MAPS      "off" disables Amazon Location map images for the issue card
  *   CITYDESK_ADDRESS_INDEX    path of the local address index built by `pnpm sync:addresses`
  */
-import { createStaticMapProvider } from './aws/staticMap.ts';
+import { createStaticMapProvider, MapBudgetError } from './aws/staticMap.ts';
 import { IndexedAddressDirectory } from './addressIndex.ts';
 import { BostonAddressDirectory, type AddressDirectory } from './addresses.ts';
 import { cardHooks } from './cardsHook.ts';
@@ -87,7 +87,22 @@ export async function buildRuntime(options: BootstrapOptions): Promise<Bootstrap
 
   // Map images for the issue card.
   const mapsOn = placeIndex !== undefined && placeIndex !== '' && env.CITYDESK_STATIC_MAPS !== 'off';
-  const staticMap = mapsOn ? createStaticMapProvider({ region }) : undefined;
+  // Only requests that reach Amazon Location count toward the day's allowance; cached images are free.
+  const mapsPerDay = positiveNumber(env.CITYDESK_MAX_STATIC_MAPS_PER_DAY, 2000);
+  let mapsRefusedOn: string | undefined;
+  const staticMap = mapsOn
+    ? createStaticMapProvider({
+        region,
+        beforeRequest: async () => {
+          const day = new Date().toISOString().slice(0, 10);
+          if (mapsRefusedOn === day) throw new MapBudgetError(mapsPerDay);
+          if ((await store.increment(`static_maps#${day}`, 2 * 86_400)) > mapsPerDay) {
+            mapsRefusedOn = day;
+            throw new MapBudgetError(mapsPerDay);
+          }
+        },
+      })
+    : undefined;
   summary.push(`map images: ${mapsOn ? `Amazon Location static maps in ${region}` : 'off'}`);
 
   const runtime = new CityDeskRuntime({
@@ -98,12 +113,14 @@ export async function buildRuntime(options: BootstrapOptions): Promise<Bootstrap
     directory,
     geocoder,
     staticMap,
+    useCityTestEndpoint: env.CITYDESK_USE_CITY_TEST_ENDPOINT === 'true',
     config: {
       dedupeRadiusMeters: positiveNumber(env.CITYDESK_DEDUPE_RADIUS_M, 50),
       dedupeWindowDays: positiveNumber(env.CITYDESK_DEDUPE_WINDOW_DAYS, 30),
       maxFilingsPerUserPerHour: positiveNumber(env.CITYDESK_MAX_FILINGS_PER_USER_PER_HOUR, 10),
-      maxFilingsPerHour: positiveNumber(env.CITYDESK_MAX_FILINGS_PER_HOUR, 200),
-      maxStaticMapsPerDay: positiveNumber(env.CITYDESK_MAX_STATIC_MAPS_PER_DAY, 2000),
+      maxFilingsPerCallerPerHour: positiveNumber(env.CITYDESK_MAX_FILINGS_PER_CALLER_PER_HOUR, 20),
+      maxFilingsPerHour: positiveNumber(env.CITYDESK_MAX_FILINGS_PER_HOUR, 100),
+
     },
   });
   summary.push('cards: issue card and schedule card (MCP Apps)');

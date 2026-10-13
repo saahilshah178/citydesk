@@ -6,6 +6,13 @@ import type { IncomingMessage, RequestListener, ServerResponse } from 'node:http
 
 export type FetchHandler = (request: Request) => Promise<Response>;
 
+/**
+ * Header the adapters set to the address the connection actually came from (the TCP peer for
+ * node:http, `requestContext.http.sourceIp` for Lambda). Any value the caller sent under this name
+ * is overwritten, so handlers can rely on it for rate limiting.
+ */
+export const SOURCE_IP_HEADER = 'x-open311-source-ip';
+
 /** Wraps a fetch-style handler as a node:http request listener. Response bodies are streamed. */
 export function toNodeListener(handler: FetchHandler): RequestListener {
   return (req: IncomingMessage, res: ServerResponse) => {
@@ -50,6 +57,7 @@ function toWebRequest(req: IncomingMessage): Request {
     if (Array.isArray(value)) for (const v of value) headers.append(key, v);
     else headers.set(key, value);
   }
+  headers.set(SOURCE_IP_HEADER, req.socket.remoteAddress ?? 'unknown');
   const method = (req.method ?? 'GET').toUpperCase();
   const hasBody = method !== 'GET' && method !== 'HEAD';
   return new Request(url, {
@@ -93,8 +101,7 @@ export function toFunctionUrlHandler(handler: FetchHandler): (event: FunctionUrl
       if (value !== undefined) headers.set(key, value);
     }
     if (event.cookies?.length) headers.set('cookie', event.cookies.join('; '));
-    const sourceIp = event.requestContext?.http?.sourceIp;
-    if (sourceIp && !headers.has('x-forwarded-for')) headers.set('x-forwarded-for', sourceIp);
+    headers.set(SOURCE_IP_HEADER, event.requestContext?.http?.sourceIp ?? 'unknown');
 
     const host = headers.get('host') ?? event.requestContext?.domainName ?? 'lambda.internal';
     const query = event.rawQueryString ? `?${event.rawQueryString}` : '';

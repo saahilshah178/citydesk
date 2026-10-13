@@ -10,8 +10,8 @@
  */
 
 export interface CounterStore {
-  /** Adds one to `key` and returns the new count. The counter may be forgotten after `ttlSeconds`. */
-  increment(key: string, ttlSeconds: number): Promise<number>;
+  /** Adds `by` (default one) to `key` and returns the new count. The counter may be forgotten after `ttlSeconds`. */
+  increment(key: string, ttlSeconds: number, by?: number): Promise<number>;
 }
 
 export class MemoryCounterStore implements CounterStore {
@@ -23,19 +23,19 @@ export class MemoryCounterStore implements CounterStore {
     private readonly maxKeys: number = 20_000,
   ) {}
 
-  async increment(key: string, ttlSeconds: number): Promise<number> {
+  async increment(key: string, ttlSeconds: number, by: number = 1): Promise<number> {
     const time = this.now();
     const existing = this.counters.get(key);
     if (existing && existing.expiresAt > time) {
-      existing.count += 1;
+      existing.count += by;
       return existing.count;
     }
     if (this.counters.size >= this.maxKeys) this.prune(time);
     if (this.counters.size >= this.maxKeys) {
       throw new Error('rate limit table is full');
     }
-    this.counters.set(key, { count: 1, expiresAt: time + ttlSeconds * 1000 });
-    return 1;
+    this.counters.set(key, { count: by, expiresAt: time + ttlSeconds * 1000 });
+    return by;
   }
 
   private prune(time: number): void {
@@ -62,6 +62,14 @@ export interface LimitRequest {
   ip: string;
   /** Whether this request spends money (Bedrock, Polly) and so counts toward the daily cap. */
   metered: boolean;
+  /**
+   * Which half of the check to run. "rate" is the per-address limit, applied to every request as it
+   * arrives. "spend" is the daily cap, applied only once a request has been validated and is about
+   * to cost money, so junk requests cannot use up the day. Default: both.
+   */
+  phase?: 'rate' | 'spend';
+  /** How much of the daily cap this request uses. A long conversation costs more than a short one. Default 1. */
+  units?: number;
 }
 
 export interface Limiter {
@@ -76,7 +84,7 @@ function secondsUntilNextUtcDay(time: number): number {
 
 export function createLimiter(store: CounterStore = new MemoryCounterStore(), now: () => number = Date.now): Limiter {
   return {
-    async check({ ip, metered }, { perMinute, dailyCap }) {
+    async check({ ip, metered, phase, units = 1 }, { perMinute, dailyCap }) {
       if (perMinute === null || dailyCap === null) {
         return {
           ok: false,
@@ -93,7 +101,7 @@ export function createLimiter(store: CounterStore = new MemoryCounterStore(), no
       const day = new Date(time).toISOString().slice(0, 10);
 
       try {
-        const perIp = await store.increment(`ip:${ip}:${minute}`, 120);
+        const perIp = phase === 'spend' ? 0 : await store.increment(`ip:${ip}:${minute}`, 120);
         if (perIp > perMinute) {
           return {
             ok: false,
@@ -103,9 +111,9 @@ export function createLimiter(store: CounterStore = new MemoryCounterStore(), no
             retryAfterSeconds: Math.max(1, 60 - Math.floor((time % 60_000) / 1000)),
           };
         }
-        if (metered) {
+        if (metered && phase !== 'rate') {
           // A cap of zero must refuse without counting, so it works as an off switch.
-          const total = dailyCap === 0 ? 1 : await store.increment(`day:${day}`, 2 * 86_400);
+          const total = dailyCap === 0 ? 1 : await store.increment(`day:${day}`, 2 * 86_400, Math.max(1, Math.ceil(units)));
           if (total > dailyCap) {
             return {
               ok: false,

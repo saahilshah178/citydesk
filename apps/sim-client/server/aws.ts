@@ -85,16 +85,16 @@ export class SharedDayCounter implements CounterStore {
     this.now = options.now ?? Date.now;
   }
 
-  async increment(key: string, ttlSeconds: number): Promise<number> {
-    if (!key.startsWith('day:')) return this.local.increment(key, ttlSeconds);
+  async increment(key: string, ttlSeconds: number, by: number = 1): Promise<number> {
+    if (!key.startsWith('day:')) return this.local.increment(key, ttlSeconds, by);
     const out = await this.client.send(
       new UpdateItemCommand({
         TableName: this.options.tableName,
         Key: { pk: { S: 'COUNTER' }, sk: { S: `client-api#${key}` } },
-        UpdateExpression: 'ADD #n :one SET #ttl = if_not_exists(#ttl, :ttl)',
+        UpdateExpression: 'ADD #n :by SET #ttl = if_not_exists(#ttl, :ttl)',
         ExpressionAttributeNames: { '#n': 'n', '#ttl': 'ttl' },
         ExpressionAttributeValues: {
-          ':one': { N: '1' },
+          ':by': { N: String(Math.max(1, Math.ceil(by))) },
           ':ttl': { N: String(Math.floor(this.now() / 1000) + ttlSeconds) },
         },
         ReturnValues: 'UPDATED_NEW',

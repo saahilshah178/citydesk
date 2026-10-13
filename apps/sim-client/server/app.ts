@@ -29,7 +29,9 @@ import { buildSystemPrompt } from './prompt.ts';
 /** Set by the adapter (dev server, Lambda) from the connection; any value sent by a client is replaced. */
 export const CLIENT_IP_HEADER = 'x-citydesk-client-ip';
 
-export const MAX_CONVERSE_BODY_BYTES = 256 * 1024;
+export const MAX_CONVERSE_BODY_BYTES = 96 * 1024;
+/** One unit of the daily cap per this many bytes of conversation sent to the model. */
+export const CONVERSE_BYTES_PER_UNIT = 8 * 1024;
 export const MAX_SPEAK_BODY_BYTES = 4 * 1024;
 export const MAX_SPEAK_CHARS = 600;
 const CONVERSE_TIMEOUT_MS = 25_000;
@@ -188,8 +190,9 @@ const CREDENTIALS = new Set([
 
 function upstreamError(service: 'bedrock' | 'polly', error: unknown): Response {
   const name = error instanceof Error ? error.name : 'Error';
-  const detail = (error instanceof Error ? error.message : String(error)).slice(0, 300);
-  const message = `${service === 'bedrock' ? 'Amazon Bedrock' : 'Amazon Polly'}: ${name}: ${detail}`;
+  // Only the error name goes back to the caller. AWS error text can name the account, the role and
+  // the model; it is logged by the route instead.
+  const message = `${service === 'bedrock' ? 'Amazon Bedrock' : 'Amazon Polly'} request failed (${name}).`;
   if (name === 'AbortError' || name === 'TimeoutError' || name === 'ModelTimeoutException') {
     return errorResponse(504, 'upstream_timeout', message);
   }
@@ -229,6 +232,20 @@ type Route = { method: 'GET' | 'POST'; metered: boolean; run: (request: Request,
 export function createApiHandler(overrides: Partial<ApiDeps> = {}): (request: Request) => Promise<Response> {
   const deps: ApiDeps = { ...defaultDeps(), ...overrides };
 
+  /** Runs one phase of the limits. Returns the refusal to send, or undefined when the request may go on. */
+  async function limit(
+    request: Request,
+    config: AppConfig,
+    what: { metered: boolean; phase: 'rate' | 'spend'; units?: number },
+  ): Promise<Response | undefined> {
+    const decision = await deps.limiter.check(
+      { ip: request.headers.get(CLIENT_IP_HEADER)?.trim() || 'unknown', ...what },
+      { perMinute: config.rateLimitPerMinute, dailyCap: config.dailyRequestCap },
+    );
+    if (decision.ok) return undefined;
+    return errorResponse(decision.status, decision.code, decision.message, { 'retry-after': String(decision.retryAfterSeconds) });
+  }
+
   const routes: Record<string, Route> = {
     '/api/config': {
       method: 'GET',
@@ -261,6 +278,11 @@ export function createApiHandler(overrides: Partial<ApiDeps> = {}): (request: Re
         if (messages[0]?.role !== 'user' || messages.at(-1)?.role !== 'user') {
           return errorResponse(400, 'invalid_request', 'messages must start and end with a user message.');
         }
+        // Only now, with a request that will really reach the model, is the daily cap spent, and in
+        // proportion to how much text is being sent.
+        const bytes = Buffer.byteLength(JSON.stringify(parsed.data));
+        const overCap = await limit(request, config, { metered: true, phase: 'spend', units: Math.ceil(bytes / CONVERSE_BYTES_PER_UNIT) });
+        if (overCap) return overCap;
 
         try {
           const outcome = await converseOnce(
@@ -294,6 +316,8 @@ export function createApiHandler(overrides: Partial<ApiDeps> = {}): (request: Re
         if (!body.ok) return body.response;
         const parsed = speakBody.safeParse(body.value);
         if (!parsed.success) return errorResponse(400, 'invalid_request', describeIssue(parsed.error));
+        const overCap = await limit(request, config, { metered: true, phase: 'spend' });
+        if (overCap) return overCap;
 
         try {
           const output = await deps.polly(config).send(
@@ -331,15 +355,8 @@ export function createApiHandler(overrides: Partial<ApiDeps> = {}): (request: Re
       }
 
       const config = await deps.config();
-      const decision = await deps.limiter.check(
-        { ip: request.headers.get(CLIENT_IP_HEADER)?.trim() || 'unknown', metered: route.metered },
-        { perMinute: config.rateLimitPerMinute, dailyCap: config.dailyRequestCap },
-      );
-      if (!decision.ok) {
-        return errorResponse(decision.status, decision.code, decision.message, {
-          'retry-after': String(decision.retryAfterSeconds),
-        });
-      }
+      const refused = await limit(request, config, { metered: route.metered, phase: 'rate' });
+      if (refused) return refused;
       return await route.run(request, config);
     } catch (error) {
       deps.log('unhandled error', error);

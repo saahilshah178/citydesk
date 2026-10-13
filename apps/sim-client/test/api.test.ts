@@ -407,3 +407,84 @@ describe('demo limits', () => {
     expect((await handle(anonymous())).status).toBe(429);
   });
 });
+
+describe('the daily cap is spent only by requests that reach AWS', () => {
+  // These use the real limiter with a small cap, the way a stranger would meet it.
+  async function setup(cap: number) {
+    const { createApiHandler } = await import('../server/app.ts');
+    const { createLimiter, MemoryCounterStore } = await import('../server/limits.ts');
+    const { loadConfig, envSource } = await import('../server/config.ts');
+    let converseCalls = 0;
+    const handler = createApiHandler({
+      config: () => loadConfig(envSource({ BEDROCK_MODEL_ID: 'example.test-model-v1:0', DEMO_DAILY_REQUEST_CAP: String(cap), DEMO_RATE_LIMIT_PER_MINUTE: '1000' })),
+      limiter: createLimiter(new MemoryCounterStore()),
+      bedrock: () =>
+        ({
+          send: async () => {
+            converseCalls++;
+            return { output: { message: { role: 'assistant', content: [{ text: 'Okay.' }] } }, stopReason: 'end_turn', usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 } };
+          },
+        }) as never,
+      log: () => undefined,
+    });
+    const post = (body: unknown, headers: Record<string, string> = {}) =>
+      handler(new Request('http://localhost/api/converse', { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: typeof body === 'string' ? body : JSON.stringify(body) }));
+    const turn = (text: string) => ({ messages: [{ role: 'user', content: [{ text }] }] });
+    return { post, turn, calls: () => converseCalls };
+  }
+
+  it('junk requests do not use up the day for everyone else', async () => {
+    const { post, turn, calls } = await setup(3);
+    for (let i = 0; i < 10; i++) {
+      expect((await post('{not json')).status).toBe(400);
+      expect((await post({ messages: [] })).status).toBe(400);
+      expect((await post(turn('hi'), { 'content-type': 'text/plain' })).status).toBe(415);
+    }
+    expect(calls()).toBe(0);
+    // The whole cap is still there for real turns.
+    for (let i = 0; i < 3; i++) expect((await post(turn('When is trash day?'))).status).toBe(200);
+    const fourth = await post(turn('When is trash day?'));
+    expect(fourth.status).toBe(429);
+    expect(((await fourth.json()) as { error: { code: string } }).error.code).toBe('daily_cap_reached');
+    expect(calls()).toBe(3);
+  });
+
+  it('a long conversation costs more of the cap than a short one', async () => {
+    const { post, calls } = await setup(10);
+    // About 30 KB of text: four units at 8 KB each.
+    const long = { messages: [{ role: 'user', content: [{ text: 'a'.repeat(7_500) }, { text: 'b'.repeat(7_500) }, { text: 'c'.repeat(7_500) }, { text: 'd'.repeat(7_500) }] }] };
+    expect((await post(long)).status).toBe(200);
+    expect((await post(long)).status).toBe(200);
+    // Eight units are gone; a third long one would need four more and is refused, a short one fits.
+    expect((await post(long)).status).toBe(429);
+    expect(calls()).toBe(2);
+  });
+
+  it('refuses a conversation larger than the body limit before anything else', async () => {
+    const { post, calls } = await setup(10);
+    const huge = { messages: Array.from({ length: 30 }, (_, i) => ({ role: i % 2 === 0 ? 'user' : 'assistant', content: [{ text: 'x'.repeat(7_900) }] })).concat([{ role: 'user', content: [{ text: 'x' }] }]) };
+    const res = await post(huge);
+    expect(res.status).toBe(413);
+    expect(calls()).toBe(0);
+  });
+
+  it('does not repeat AWS error text to the caller', async () => {
+    const { createApiHandler } = await import('../server/app.ts');
+    const { loadConfig, envSource } = await import('../server/config.ts');
+    const handler = createApiHandler({
+      config: () => loadConfig(envSource({ BEDROCK_MODEL_ID: 'example.test-model-v1:0' })),
+      bedrock: () =>
+        ({
+          send: async () => {
+            throw Object.assign(new Error('User: arn:aws:sts::123456789012:assumed-role/CityDesk-ClientApiRole/x is not authorized to perform: bedrock:InvokeModel'), { name: 'AccessDeniedException' });
+          },
+        }) as never,
+      log: () => undefined,
+    });
+    const res = await handler(new Request('http://localhost/api/converse', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: [{ role: 'user', content: [{ text: 'hi' }] }] }) }));
+    const text = await res.text();
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(text).toContain('AccessDeniedException');
+    for (const secret of ['123456789012', 'arn:aws', 'ClientApiRole']) expect(text).not.toContain(secret);
+  });
+});

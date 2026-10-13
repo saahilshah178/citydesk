@@ -88,6 +88,33 @@ describe('write guard', () => {
     expect(attempts).toBe(1);
   });
 
+  it('refuses to follow a redirect on a write, so the request cannot reach a server the guard never saw', async () => {
+    const seen: Array<{ url: string; redirect: RequestInit['redirect'] }> = [];
+    const redirecting: typeof fetch = async (input, init) => {
+      seen.push({ url: String(input), redirect: init?.redirect });
+      // What a real fetch returns with redirect: 'manual' when the server answers 307.
+      return new Response(null, { status: 307, headers: { location: 'https://311.example.gov/open311/v2/requests.json' } });
+    };
+    const c = new Open311Client(NEW_HAVEN, { fetch: redirecting, env: { SEECLICKFIX_API_KEY: 'secret-key' }, limiters: new Map() });
+    const err = await c.createRequest(input).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(WriteBlockedError);
+    expect(err).toMatchObject({ code: 'write_blocked', retryable: false });
+    expect((err as WriteBlockedError).details).toMatchObject({ status: 307, location: 'https://311.example.gov/open311/v2/requests.json' });
+    // Exactly one request went out, to the sandbox, and fetch was told not to follow redirects.
+    expect(seen).toEqual([{ url: 'https://test.seeclickfix.com/open311/v2/requests.json', redirect: 'manual' }]);
+  });
+
+  it('still follows redirects on reads', async () => {
+    const seen: Array<RequestInit['redirect']> = [];
+    const c = new Open311Client(NEW_HAVEN, {
+      fetch: async (_input, init) => (seen.push(init?.redirect), jsonResponse([])),
+      env: {},
+      limiters: new Map(),
+    });
+    await c.listServices('test');
+    expect(seen).toEqual(['follow']);
+  });
+
   it('rejects a create with no location or no service code before calling the server', async () => {
     const { c, calls } = client(NEW_HAVEN, {});
     await expect(c.createRequest({ serviceCode: '10407' })).rejects.toMatchObject({ code: 'invalid_request' });

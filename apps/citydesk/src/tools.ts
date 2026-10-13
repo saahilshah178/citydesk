@@ -50,6 +50,11 @@ import { makeRequestId, parseRequestId, toIssueView } from './views.ts';
 export interface UserContext {
   /** Stable identifier for the resident (household or device). */
   userId: string;
+  /**
+   * Who is calling at the network level (a digest of the address), when known. Households are
+   * chosen by the caller, so ceilings that must hold against one caller are keyed on this instead.
+   */
+  callerKey?: string;
 }
 
 /** Attached to tool definitions so hosts can render a card. Filled in by the cards module. */
@@ -136,14 +141,22 @@ export function fromThrown(rt: CityDeskRuntime, kind: ResultKind, err: unknown):
     );
   }
   const e = err instanceof Error ? err : new Error(String(err));
+  // The detail goes to the server log only: AWS error text can name the account, role and table.
   rt.log('tool_failed', { error: e.message, name: e.name });
   const awsDenied = /credential|AccessDenied|not authorized|UnrecognizedClient|ExpiredToken/i.test(`${e.name} ${e.message}`);
+  const throttled = /Throttl|ProvisionedThroughputExceeded|TooManyRequests/i.test(e.name);
   return errorResult(
     rt,
     kind,
-    awsDenied ? 'not_configured' : 'internal',
-    'Something went wrong on my side, so I could not finish that. Please try again.',
-    e.message,
+    awsDenied ? 'not_configured' : throttled ? 'rate_limited' : 'internal',
+    throttled
+      ? 'I am handling a lot of requests right now. Please try again in a moment.'
+      : 'Something went wrong on my side, so I could not finish that. Please try again.',
+    awsDenied
+      ? 'A service this tool depends on is not configured or not permitted.'
+      : throttled
+        ? 'A service this tool depends on is throttling requests.'
+        : 'An internal error occurred. The details are in the server log.',
     !awsDenied,
   );
 }
@@ -366,7 +379,7 @@ async function refresh(
     const endpoint = rt.endpoint(endpointId);
     if (!endpoint) continue;
     try {
-      const rows = await endpoint.client.getRequests(items.map((i) => i.service_request_id), endpoint.kind);
+      const rows = await endpoint.lookups.getRequests(items.map((i) => i.service_request_id), endpoint.kind);
       for (const request of rows) out.set(makeRequestId(endpointId, request.service_request_id), { endpoint, request });
     } catch (err) {
       failure = err;
@@ -494,23 +507,8 @@ export function registerCityDeskTools(server: McpServer, rt: CityDeskRuntime, us
         );
       }
 
-      // A public demo needs a ceiling: cap filings per household and overall, per clock hour.
-      const hour = Math.floor(rt.now() / 3_600_000);
-      const mine = await rt.store.increment(`filings#${user.userId}#${hour}`, 7200);
-      const everyone = await rt.store.increment(`filings#all#${hour}`, 7200);
-      if (mine > rt.config.maxFilingsPerUserPerHour || everyone > rt.config.maxFilingsPerHour) {
-        return errorResult(
-          rt,
-          'issue',
-          'rate_limited',
-          'I have filed as many reports as I can for this hour. Please try again a little later.',
-          mine > rt.config.maxFilingsPerUserPerHour
-            ? `This household reached the limit of ${rt.config.maxFilingsPerUserPerHour} reports per hour.`
-            : `The server reached its limit of ${rt.config.maxFilingsPerHour} reports per hour.`,
-          true,
-          { retry_after_seconds: 3600 - Math.floor((rt.now() / 1000) % 3600) },
-        );
-      }
+      const refused = await filingCeiling(rt, user);
+      if (refused) return refused;
 
       const created = await target.endpoint.client.createRequest(
         {
@@ -780,16 +778,66 @@ export function registerCityDeskTools(server: McpServer, rt: CityDeskRuntime, us
       }
       const record = matches[0]!;
       const schedule = buildSchedule(rt, record, await rt.directory.datasetLastModified());
-      await rt.store.setHomeAddress(user.userId, {
-        address_id: record.address_id,
-        address: record.full_address,
-        neighborhood: record.neighborhood,
-        zip_code: record.zip_code,
-        saved_at: nowIso(rt),
-      });
+      // A read is cheaper than a write: only save the address when it is new or different.
+      const saved = address === undefined ? record.address_id : (await rt.store.getHomeAddress(user.userId))?.address_id;
+      if (saved !== record.address_id) {
+        await rt.store.setHomeAddress(user.userId, {
+          address_id: record.address_id,
+          address: record.full_address,
+          neighborhood: record.neighborhood,
+          zip_code: record.zip_code,
+          saved_at: nowIso(rt),
+        });
+      }
       return scheduleResult(rt, { outcome: 'schedule', spoken_summary: scheduleSummary(rt, schedule), schedule });
     }),
   );
+}
+
+/**
+ * The filing ceilings for a public demo, per clock hour: per caller, per household, then overall.
+ * Each counter is touched only if the ones before it passed, so one caller hammering the tool uses
+ * up its own allowance and nothing else, and a refusal is remembered locally instead of being
+ * counted again. Returns the refusal, or undefined when the report may be filed.
+ */
+async function filingCeiling(rt: CityDeskRuntime, user: UserContext): Promise<CallToolResult | undefined> {
+  const hour = Math.floor(rt.now() / 3_600_000);
+  const refuse = (message: string): CallToolResult =>
+    errorResult(rt, 'issue', 'rate_limited', 'I have filed as many reports as I can for this hour. Please try again a little later.', message, true, {
+      retry_after_seconds: 3600 - Math.floor((rt.now() / 1000) % 3600),
+    });
+  // Keys already known to be over their ceiling this hour, so repeats cost no database write.
+  const overCeiling = rt.overCeiling;
+  if (overCeiling.size > 5000) overCeiling.clear();
+
+  const steps: Array<{ key: string; limit: number; message: string }> = [];
+  if (user.callerKey) {
+    steps.push({
+      key: `filings#caller#${user.callerKey}#${hour}`,
+      limit: rt.config.maxFilingsPerCallerPerHour,
+      message: `This network address reached the limit of ${rt.config.maxFilingsPerCallerPerHour} reports per hour.`,
+    });
+  }
+  steps.push({
+    key: `filings#${user.userId}#${hour}`,
+    limit: rt.config.maxFilingsPerUserPerHour,
+    message: `This household reached the limit of ${rt.config.maxFilingsPerUserPerHour} reports per hour.`,
+  });
+  steps.push({
+    key: `filings#all#${hour}`,
+    limit: rt.config.maxFilingsPerHour,
+    message: `The server reached its limit of ${rt.config.maxFilingsPerHour} reports per hour.`,
+  });
+
+  // First, anything already known to be exhausted: refused without touching the database.
+  for (const step of steps) if (overCeiling.get(step.key) === hour) return refuse(step.message);
+  for (const step of steps) {
+    if ((await rt.store.increment(step.key, 7200)) > step.limit) {
+      overCeiling.set(step.key, hour);
+      return refuse(step.message);
+    }
+  }
+  return undefined;
 }
 
 type Lookup =
@@ -814,7 +862,8 @@ async function lookup(rt: CityDeskRuntime, requestId: string): Promise<Lookup> {
       ),
     };
   }
-  const request = await endpoint.client.getRequest(parsed.serviceRequestId, endpoint.kind);
+  const plausible = endpoint.idPattern === undefined || endpoint.idPattern.test(parsed.serviceRequestId);
+  const request = plausible ? await endpoint.lookups.getRequest(parsed.serviceRequestId, endpoint.kind) : undefined;
   if (!request) {
     return {
       ok: false,

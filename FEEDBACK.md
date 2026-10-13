@@ -102,7 +102,7 @@ Where something has not been exercised against the live service yet, this file s
 - **Used for:** The whole deployment in `infra/`: two Lambda functions with Function URLs, DynamoDB,
   the Location place index, S3 and CloudFront, and a Parameter Store entry.
 - **Worked well:** An environment-agnostic `cdk synth` needs no credentials, and template assertions
-  plus real esbuild bundling run in about ten seconds, so 49 infrastructure tests run on every change.
+  plus real esbuild bundling run in about ten seconds, so 50 infrastructure tests run on every change.
   `addFunctionUrl` emits both permissions Lambda has required since October 2025. The S3 origin access
   control, `FunctionUrlOrigin` and managed cache policies gave a three-behaviour distribution in about
   25 lines.

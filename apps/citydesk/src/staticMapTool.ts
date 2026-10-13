@@ -5,6 +5,7 @@
  */
 import type { CallToolResult, McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
+import { MapBudgetError } from './aws/staticMap.ts';
 import { STATIC_MAP_TOOL } from './contract.ts';
 import type { CityDeskRuntime } from './runtime.ts';
 
@@ -39,14 +40,10 @@ export function registerStaticMapTool(server: McpServer, rt: CityDeskRuntime, me
         return fail('outside_service_area', `That point is outside ${rt.city.name}.`, false);
       }
       try {
-        // Map images cost money per request; the daily ceiling is shared through the store.
-        const day = new Date(rt.now()).toISOString().slice(0, 10);
-        if ((await rt.store.increment(`static_maps#${day}`, 2 * 86_400)) > rt.config.maxStaticMapsPerDay) {
-          return fail('rate_limited', 'The daily allowance of map images is used up.', true);
-        }
         const image = await rt.staticMap(args);
         return { content: [{ type: 'image', data: image.data, mimeType: image.mimeType }] };
       } catch (err) {
+        if (err instanceof MapBudgetError) return fail('rate_limited', err.message, true);
         const message = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
         rt.log('static_map_failed', { error: message });
         return fail('upstream_unavailable', 'The map image could not be drawn right now.', true);

@@ -35,11 +35,29 @@ export interface SandboxRequestRecord {
   device_id?: string;
 }
 
-/** Where the sandbox keeps its requests. The default is in memory; back it with a database to persist. */
+export interface SandboxListOptions {
+  /** Only requests filed at or after this time (epoch milliseconds). */
+  since?: number;
+  /** At most this many, newest first. */
+  limit?: number;
+}
+
+/**
+ * Where the sandbox keeps its requests. The default is in memory; back it with a database to
+ * persist. `list` returns newest first and must be able to honor `since` and `limit` without
+ * reading everything, because it runs on every duplicate check.
+ */
 export interface SandboxStore {
   put(record: SandboxRequestRecord): Promise<void>;
   get(id: string): Promise<SandboxRequestRecord | undefined>;
-  list(): Promise<SandboxRequestRecord[]>;
+  list(options?: SandboxListOptions): Promise<SandboxRequestRecord[]>;
+}
+
+/** Applies `since` and `limit` to records held in memory. */
+export function selectRecent(records: Iterable<SandboxRequestRecord>, options: SandboxListOptions = {}): SandboxRequestRecord[] {
+  const since = options.since ?? -Infinity;
+  const recent = [...records].filter((r) => r.requested_at >= since).sort((a, b) => b.requested_at - a.requested_at);
+  return options.limit === undefined ? recent : recent.slice(0, Math.max(0, options.limit));
 }
 
 export class MemorySandboxStore implements SandboxStore {
@@ -50,8 +68,8 @@ export class MemorySandboxStore implements SandboxStore {
   async get(id: string): Promise<SandboxRequestRecord | undefined> {
     return this.records.get(id);
   }
-  async list(): Promise<SandboxRequestRecord[]> {
-    return [...this.records.values()];
+  async list(options?: SandboxListOptions): Promise<SandboxRequestRecord[]> {
+    return selectRecent(this.records.values(), options);
   }
 }
 
@@ -115,6 +133,8 @@ export const DEFAULT_SANDBOX_SERVICES: SandboxService[] = [
 ];
 
 const DEFAULT_LIFECYCLE: SandboxLifecycle = { assignAfterMs: 2 * 60_000, closeAfterMs: 20 * 3_600_000 };
+/** The most rows one list call reads from the store, however it is paged or filtered. */
+const MAX_LIST_ROWS = 900;
 
 export interface Open311Sandbox {
   /** Web-standard handler. Returns a 404 Open311 error for paths outside `basePath`. */
@@ -260,10 +280,23 @@ export function createSandbox(options: SandboxOptions = {}): Open311Sandbox {
     const long = toNumber(p.get('long'));
     const radius = toNumber(p.get('radius')) ?? 1000;
     const perPage = Math.min(300, Math.max(1, Math.floor(toNumber(p.get('per_page')) ?? 50)));
-    const page = Math.max(1, Math.floor(toNumber(p.get('page')) ?? 1));
+    const page = Math.min(MAX_LIST_ROWS / perPage, Math.max(1, Math.floor(toNumber(p.get('page')) ?? 1)));
 
-    const rows = (await store.list())
-      .filter((r) => !ids || ids.includes(r.service_request_id))
+    // Read as little as the question needs. Lookups by ID never list. A search for open requests
+    // cannot match anything older than the point at which the lifecycle closes them. Everything
+    // else is bounded to the newest MAX_LIST_ROWS requests of the last 90 days.
+    let candidates: SandboxRequestRecord[];
+    if (ids) {
+      const found = await Promise.all(ids.slice(0, 50).map((id) => store.get(id)));
+      candidates = found.filter((r): r is SandboxRequestRecord => r !== undefined);
+    } else {
+      let since = Math.max(start ?? -Infinity, now() - 90 * 86_400_000);
+      if (lifecycle && status?.length === 1 && status[0] === 'open') since = Math.max(since, now() - lifecycle.closeAfterMs);
+      const filtered = codes !== undefined || status !== undefined || lat !== undefined || end !== undefined;
+      candidates = await store.list({ since, limit: filtered ? MAX_LIST_ROWS : page * perPage });
+    }
+
+    const rows = candidates
       .filter((r) => !codes || codes.includes(r.service_code))
       .filter((r) => start === undefined || r.requested_at >= start)
       .filter((r) => end === undefined || r.requested_at <= end)
@@ -336,7 +369,8 @@ export function createSandbox(options: SandboxOptions = {}): Open311Sandbox {
     const tokenMatch = /^\/tokens\/(.+)\.json$/.exec(rest);
     if (tokenMatch && method === 'GET') {
       const token = decodeURIComponent(tokenMatch[1]!);
-      const record = (await store.list()).find((r) => r.token === token);
+      // Tokens are only useful right after filing, so two days of requests are enough to search.
+      const record = (await store.list({ since: now() - 2 * 86_400_000, limit: MAX_LIST_ROWS })).find((r) => r.token === token);
       if (!record) return error(404, `No request for token ${token}`);
       return json(200, [{ service_request_id: record.service_request_id, token }]);
     }

@@ -22,7 +22,7 @@ mini-challenges.
 
 | | |
 | --- | --- |
-| MCP server, six tools, cards, web client | Built and tested: 397 automated tests, plus runs against live Boston data |
+| MCP server, six tools, cards, web client | Built and tested: 421 automated tests, plus runs against live Boston data |
 | Server side of the demo conversation | Passes end to end against live data ([`results/conversation.tools-only.json`](results/conversation.tools-only.json)) |
 | Deployable bundles | `cdk synth` succeeds and both Lambda bundles start and serve locally ([`results/bundle_check.json`](results/bundle_check.json)) |
 | Bedrock assistant, Polly speech, Amazon Location, DynamoDB, the AWS deployment | **Written and unit-tested, not yet run against AWS.** The build machine had no AWS credentials. `pnpm smoke` reports this on every run |
@@ -167,7 +167,8 @@ CityDesk never files into a city's production system.
   that is not declared a test endpoint, refuses a "test" endpoint that points at the production
   server, and runs before a request body is built. Only `ALLOW_PRODUCTION_WRITES=true` (that exact
   string) turns it off.
-- A failed POST is never retried after a network error, so a report cannot be filed twice.
+- A failed POST is never retried after a network error, so a report cannot be filed twice, and a
+  redirect on a POST is refused, so a write cannot be bounced to a server the guard never saw.
 - Reads and writes use different systems on purpose: duplicates are checked against Boston's **live**
   requests, and new reports go to a **sandbox**.
 
@@ -177,7 +178,8 @@ required attributes and a simulated lifecycle whose notes all say "simulated". Y
 filed at `/sandbox/open311/v2/requests.json` on the server. The two sandboxes we set out to use were
 not usable: the test endpoint in Boston's discovery file does not resolve, and SeeClickFix's test
 server would not accept a new request without an account token (friction log entries 1 and 5). Both
-are still configured, and Boston's is tried first on every filing in case it comes back.
+are still configured: set `CITYDESK_USE_CITY_TEST_ENDPOINT=true` to have Boston's tried first once it
+resolves again.
 
 ## AWS services
 
@@ -231,7 +233,7 @@ Boston's open list afresh, took 1,267 ms.
 
 | What | Result | Saved in |
 | --- | --- | --- |
-| Automated tests (no network) | 397 of 397 pass in 29 files | [`results/tests.json`](results/tests.json) |
+| Automated tests (no network) | 421 of 421 pass in 30 files | [`results/tests.json`](results/tests.json) |
 | MCP Inspector, manual pass | Both servers: tools/list and 9 tool calls, including a structured error | [`results/inspector/`](results/inspector) |
 | Cards in the ext-apps `basic-host` | Both cards, 17 states, at 768x480 and 1280x800 | [`results/cards/`](results/cards) |
 | Cards in our client, live data | Issue card and schedule card | [`results/integration/`](results/integration) |
@@ -242,7 +244,12 @@ Boston's open list afresh, took 1,267 ms.
 ## Limitations
 
 - **Not connected to Alexa+.** The client is our own; the MCP server is what an Alexa+ add-on would
-  call. Identity is a demo bearer token plus a per-browser device ID, not OAuth account linking.
+  call. Identity is a demo bearer token plus a per-browser device ID, not OAuth account linking, so
+  anyone who learns a device ID can read that household's list. Clients that send no device ID get a
+  household per network address.
+- **The demo token is public by design.** What protects the deployment is rate limits per caller and
+  daily ceilings on everything that costs money ([`docs/aws.md`](docs/aws.md)). A determined caller
+  can still use up a day's allowance and make the assistant unavailable until midnight UTC.
 - **AWS paths are not yet verified live** (see Status). Until they are, there is no recorded run of
   the Bedrock assistant, Polly, Amazon Location or DynamoDB.
 - **Reports are filed in CityDesk's own sandbox**, not a city's. Boston also lists only 6 request

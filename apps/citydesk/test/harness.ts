@@ -4,7 +4,7 @@
  */
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import { readFileSync } from 'node:fs';
-import { BOSTON } from 'open311-mcp';
+import { BOSTON, SOURCE_IP_HEADER } from 'open311-mcp';
 import { resolve } from 'node:path';
 import { fakeFetch, fixtureJson, jsonResponse, type RecordedCall } from '../../../packages/open311-mcp/test/helpers.ts';
 import { createApp, DEVICE_HEADER } from '../src/app.ts';
@@ -35,8 +35,11 @@ export interface Harness {
   calls: RecordedCall[];
   /** Moves the clock forward. */
   advance(ms: number): void;
-  /** A connected MCP client for one household. */
-  connect(device?: string): Promise<Client>;
+  /**
+   * A connected MCP client for one household. `device: null` sends no device header. `address` is
+   * the network address the connection appears to come from (what the HTTP adapters report).
+   */
+  connect(device?: string | null, address?: string): Promise<Client>;
   /** Calls a tool and returns its structured content, typed. */
   call<T extends CityDeskResult = CityDeskResult>(client: Client, name: string, args?: Record<string, unknown>): Promise<{ isError: boolean; text: string; data: T }>;
   app: (request: Request) => Promise<Response>;
@@ -104,12 +107,17 @@ export function harness(
     advance: (ms) => {
       t += ms;
     },
-    async connect(device = 'household-0001') {
+    async connect(device = 'household-0001', address = '198.51.100.7') {
       const client = new Client({ name: 'citydesk-tests', version: '0.0.0' });
       await client.connect(
         new StreamableHTTPClientTransport(new URL('http://localhost:8787/mcp'), {
-          fetch: (input, init) => app(new Request(input, init)),
-          requestInit: { headers: { authorization: `Bearer ${TOKEN}`, [DEVICE_HEADER]: device } },
+          // The adapter in front of the app always sets the source address header itself.
+          fetch: (input, init) => {
+            const request = new Request(input, init);
+            request.headers.set(SOURCE_IP_HEADER, address);
+            return app(request);
+          },
+          requestInit: { headers: { authorization: `Bearer ${TOKEN}`, ...(device === null ? {} : { [DEVICE_HEADER]: device }) } },
         }),
       );
       return client;

@@ -65,7 +65,7 @@ describe('SharedDayCounter', () => {
         send: async (command: any) => {
           calls.push(command.input);
           const key = command.input.Key.sk.S as string;
-          counts.set(key, (counts.get(key) ?? 0) + 1);
+          counts.set(key, (counts.get(key) ?? 0) + Number(command.input.ExpressionAttributeValues[':by'].N));
           return { Attributes: { n: { N: String(counts.get(key)) } } };
         },
       } as never,
@@ -85,7 +85,7 @@ describe('SharedDayCounter', () => {
     expect(dynamo.calls[0]).toMatchObject({
       TableName: 'citydesk-user-requests',
       Key: { pk: { S: 'COUNTER' }, sk: { S: 'client-api#day:2026-10-13' } },
-      UpdateExpression: 'ADD #n :one SET #ttl = if_not_exists(#ttl, :ttl)',
+      UpdateExpression: 'ADD #n :by SET #ttl = if_not_exists(#ttl, :ttl)',
       ReturnValues: 'UPDATED_NEW',
     });
     expect(dynamo.calls[0]!.ExpressionAttributeValues[':ttl']).toEqual({ N: String(Math.floor(NOW / 1000) + 172_800) });

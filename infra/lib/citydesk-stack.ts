@@ -90,8 +90,10 @@ export class CityDeskStack extends cdk.Stack {
       partitionKey: { name: 'pk', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'sk', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PROVISIONED,
-      readCapacity: 5,
-      writeCapacity: 5,
+      // Inside the always-free allowance (25 of each per Region), with headroom for the counters
+      // that cap spend: those must keep working when the demo is busy.
+      readCapacity: 10,
+      writeCapacity: 10,
       timeToLiveAttribute: 'ttl',
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
@@ -178,6 +180,8 @@ export class CityDeskStack extends cdk.Stack {
         DEMO_DAILY_REQUEST_CAP: String(props.demoDailyRequestCap ?? DEFAULTS.demoDailyRequestCap),
         // The browser reaches the MCP server on the page's own origin, through the /mcp behaviour.
         MCP_URL: '/mcp',
+        // Set by the CloudFront function below; the per-address rate limit keys on it.
+        CLIENT_IP_HEADER: 'x-viewer-ip',
         // The daily request cap is one atomic counter in the table, shared by every warm instance.
         CITYDESK_TABLE: this.table.tableName,
       },
@@ -236,8 +240,22 @@ export class CityDeskStack extends cdk.Stack {
     // ever talks to one origin. Nothing is cached, and every viewer header except Host is passed on
     // (Authorization, Origin, MCP-Protocol-Version, Mcp-Session-Id, Accept, X-CityDesk-Device, ...).
     // A Function URL rejects a Host header that is not its own, hence "except Host".
+    // Behind CloudFront the functions see an edge node's address, not the visitor's. This function
+    // writes the visitor's address into a header (replacing anything the visitor sent under that
+    // name), so the per-visitor rate limits have something to key on. A caller who goes straight to
+    // a Function URL can make the header up, which is why the functions also limit by the address
+    // the connection really came from and enforce daily ceilings that no header can dodge.
+    const viewerAddress = new cloudfront.Function(this, 'ViewerAddress', {
+      comment: 'CityDesk: pass the visitor address to the origin as x-viewer-ip',
+      runtime: cloudfront.FunctionRuntime.JS_2_0,
+      code: cloudfront.FunctionCode.fromInline(
+        "function handler(event) { var request = event.request; request.headers['x-viewer-ip'] = { value: event.viewer.ip }; return request; }",
+      ),
+    });
+
     const functionBehavior = (origin: cloudfront.IOrigin): cloudfront.BehaviorOptions => ({
       origin,
+      functionAssociations: [{ function: viewerAddress, eventType: cloudfront.FunctionEventType.VIEWER_REQUEST }],
       allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
       cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
       originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,

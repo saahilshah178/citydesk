@@ -6,6 +6,7 @@ import {
   BOSTON,
   Open311Client,
   Open311Error,
+  RateLimiter,
   createSandbox,
   sandboxEndpoint,
   type CityConfig,
@@ -34,10 +35,10 @@ export interface CityDeskConfig {
   sandboxLifecycle: { assignAfterMs: number; closeAfterMs: number } | false;
   /** Most reports one household may file per hour. */
   maxFilingsPerUserPerHour: number;
+  /** Most reports one network address may file per hour, whatever households it claims to be. */
+  maxFilingsPerCallerPerHour: number;
   /** Most reports all households together may file per hour: a ceiling on abuse of a public demo. */
   maxFilingsPerHour: number;
-  /** Most map images drawn per day. */
-  maxStaticMapsPerDay: number;
 }
 
 export const DEFAULT_CONFIG: CityDeskConfig = {
@@ -45,8 +46,8 @@ export const DEFAULT_CONFIG: CityDeskConfig = {
   dedupeWindowDays: 30,
   sandboxLifecycle: { assignAfterMs: 2 * 60_000, closeAfterMs: 20 * 3_600_000 },
   maxFilingsPerUserPerHour: 10,
-  maxFilingsPerHour: 200,
-  maxStaticMapsPerDay: 2000,
+  maxFilingsPerCallerPerHour: 20,
+  maxFilingsPerHour: 100,
 };
 
 /** One Open311 endpoint as the tools see it. */
@@ -56,6 +57,13 @@ export interface EndpointRuntime {
   /** Production requests are read-only; sandbox requests were filed through CityDesk. */
   source: RequestSource;
   client: Open311Client;
+  /**
+   * Client for looking up requests by ID. On the live endpoint it has its own, smaller share of the
+   * per-minute budget, so a flood of status lookups cannot stop duplicate checks from working.
+   */
+  lookups: Open311Client;
+  /** What a request ID on this endpoint looks like. Anything else is rejected without an upstream call. */
+  idPattern?: RegExp;
   /** Shown to residents, e.g. "CityDesk sandbox". */
   label: string;
 }
@@ -80,8 +88,12 @@ export interface RuntimeOptions {
   log?: (event: string, data?: Record<string, unknown>) => void;
   /** Seed catalog of readable request types for the production endpoint. */
   observedServices?: readonly NamedService[];
-  /** Skip the city's own test endpoint and always file in the built-in sandbox. */
-  builtInSandboxOnly?: boolean;
+  /**
+   * Also try the city's own test endpoint for new reports, before the built-in sandbox. Off by
+   * default: Boston's does not resolve today, and a sandbox that comes back unannounced should be
+   * looked at before a public demo starts sending it residents' text.
+   */
+  useCityTestEndpoint?: boolean;
 }
 
 const OPEN_LIST_TTL_MS = 120_000;
@@ -109,6 +121,8 @@ export class CityDeskRuntime {
   /** Sandboxes to file into, in order of preference. */
   readonly writeTargets: EndpointRuntime[];
   private readonly endpoints = new Map<string, EndpointRuntime>();
+  /** Filing-ceiling keys known to be exhausted, mapped to the clock hour they were seen in. */
+  readonly overCeiling = new Map<string, number>();
 
   private readonly known = new Map<string, Map<string, string>>();
   private readonly fileable = new Map<string, Cached<Service[]>>();
@@ -150,25 +164,43 @@ export class CityDeskRuntime {
       sleep: opts.sleep,
       maxRateLimitWaitMs: 2_500,
     };
-    const liveClient = new Open311Client(this.city, { ...common, maxRetries: 1 });
-    this.read = this.add({ id: this.city.production!.id, kind: 'production', source: 'production', client: liveClient, label: this.city.name });
+    // The live endpoint's per-minute budget is split: most for the lists duplicate checks need (they
+    // are cached, so a few a minute go a long way), the rest for status lookups by ID.
+    const live = this.city.production!;
+    const perMinute = live.rateLimitPerMinute;
+    const lookupShare = Math.max(1, Math.floor(perMinute * 0.4));
+    const share = (n: number): CityConfig => ({ ...this.city, production: { ...live, rateLimitPerMinute: n } });
+    const mapOf = (): Map<string, RateLimiter> => new Map<string, RateLimiter>();
+    this.read = this.add({
+      id: live.id,
+      kind: 'production',
+      source: 'production',
+      client: new Open311Client(share(Math.max(1, perMinute - lookupShare)), { ...common, limiters: opts.limiters ?? mapOf(), maxRetries: 1 }),
+      lookups: new Open311Client(share(lookupShare), { ...common, limiters: opts.limiters ? new Map() : mapOf(), maxRetries: 1 }),
+      // Boston's IDs are UUIDs; other cities use numbers. Either way: short, no slashes, no spaces.
+      idPattern: /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/,
+      label: this.city.name,
+    });
 
     this.writeTargets = [];
-    if (this.city.test && !opts.builtInSandboxOnly) {
-      // The city's own sandbox, when it has one that answers. Probed without retries so a dead host costs little.
+    if (this.city.test && opts.useCityTestEndpoint) {
+      // The city's own sandbox, when asked for. Probed without retries so a dead host costs little.
       const cityTest = new Open311Client(this.city, { ...common, maxRetries: 0, timeoutMs: 3_000 });
       this.writeTargets.push(
-        this.add({ id: this.city.test.id, kind: 'test', source: 'sandbox', client: cityTest, label: `${this.city.name} test system` }),
+        this.add({ id: this.city.test.id, kind: 'test', source: 'sandbox', client: cityTest, lookups: cityTest, label: `${this.city.name} test system` }),
       );
     }
     const builtIn = sandboxEndpoint(this.sandbox, 'citydesk-sandbox');
     const sandboxCity: CityConfig = { ...this.city, test: builtIn };
+    const sandboxClient = new Open311Client(sandboxCity, { env, now: this.now });
     this.writeTargets.push(
       this.add({
         id: builtIn.id,
         kind: 'test',
         source: 'sandbox',
-        client: new Open311Client(sandboxCity, { env, now: this.now }),
+        client: sandboxClient,
+        lookups: sandboxClient,
+        idPattern: /^SB-\d{3,10}$/,
         label: 'CityDesk sandbox',
       }),
     );

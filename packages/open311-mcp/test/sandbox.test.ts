@@ -111,3 +111,47 @@ describe('built-in Open311 sandbox, driven through the real client', () => {
     expect(((await disc.json()) as { endpoints: Array<{ type: string }> }).endpoints[0]!.type).toBe('test');
   });
 });
+
+describe('sandbox reads stay small', () => {
+  it('asks the store only for what a query can match', async () => {
+    const time = fakeTime();
+    const asked: Array<{ since?: number; limit?: number }> = [];
+    const records = new Map<string, import('../src/index.ts').SandboxRequestRecord>();
+    const HOUR = 3_600_000;
+    const sandbox = createSandbox({
+      now: time.now,
+      lifecycle: { assignAfterMs: 60_000, closeAfterMs: 20 * HOUR },
+      store: {
+        put: async (r) => void records.set(r.service_request_id, r),
+        get: async (id) => records.get(id),
+        list: async (options = {}) => {
+          asked.push(options);
+          return [...records.values()].filter((r) => r.requested_at >= (options.since ?? 0)).sort((a, b) => b.requested_at - a.requested_at).slice(0, options.limit);
+        },
+      },
+    });
+    for (let i = 0; i < 40; i++) {
+      records.set(`SB-${i}`, { service_request_id: `SB-${i}`, token: `t${i}`, service_code: 'sandbox-pothole', service_name: 'Pothole', lat: 42.35, long: -71.07, requested_at: time.now() - i * HOUR });
+    }
+    const get = async (query: string): Promise<Array<{ service_request_id: string }>> =>
+      (await sandbox.fetch(new Request(`http://x/open311/v2/requests.json?${query}`))).json() as Promise<Array<{ service_request_id: string }>>;
+
+    // Open requests cannot be older than the lifecycle's closing age, so nothing older is read.
+    const open = await get('status=open&service_code=sandbox-pothole&start_date=2026-09-13T12:00:00Z');
+    expect(open).toHaveLength(20);
+    expect(asked.at(-1)!.since).toBe(time.now() - 20 * HOUR);
+
+    // A plain listing reads one page.
+    await get('per_page=10');
+    expect(asked.at(-1)).toMatchObject({ limit: 10 });
+
+    // Deep paging is capped rather than turned into a huge read.
+    await get('per_page=300&page=100000');
+    expect(asked.at(-1)!.limit).toBeLessThanOrEqual(900);
+
+    // Lookups by ID never list.
+    const before = asked.length;
+    expect((await get('service_request_id=SB-3,SB-39,missing')).map((r) => r.service_request_id).sort()).toEqual(['SB-3', 'SB-39']);
+    expect(asked).toHaveLength(before);
+  });
+});

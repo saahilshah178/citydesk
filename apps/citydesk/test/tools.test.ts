@@ -95,8 +95,19 @@ describe('report_issue', () => {
     expect((await h.runtime.sandbox.store.list()).length).toBe(1);
     expect(h.calls.length).toBeGreaterThan(0);
     expect(h.calls.filter((c) => c.method !== 'GET')).toEqual([]);
-    // Boston's own test endpoint was tried first and found unreachable, as it is in real life.
+    // By default the city's own test endpoint is not contacted at all.
+    expect(h.calls.some((c) => c.url.host === 'boston2-test.spotmobile.net')).toBe(false);
+  });
+
+  it('can be told to try the city\'s own test endpoint first, and falls back when it is unreachable', async () => {
+    const h = harness({ useCityTestEndpoint: true });
+    const client = await h.connect();
+    const r = await h.call<IssueResult>(client, 'report_issue', { issue_type: 'graffiti', description: 'Graffiti', location: '700 Boylston Street' });
+    expect(r.data.outcome).toBe('filed');
+    expect(r.data.requests[0]!.request_id).toMatch(/^citydesk-sandbox\//);
+    // The host named in Boston's discovery file does not resolve, exactly as today.
     expect(h.calls.some((c) => c.url.host === 'boston2-test.spotmobile.net')).toBe(true);
+    expect(h.calls.filter((c) => c.method !== 'GET')).toEqual([]);
   });
 
   it('treats a report filed a moment ago as a duplicate, and files again only when told to', async () => {

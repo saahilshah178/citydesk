@@ -152,7 +152,7 @@ describe('DynamoDB table', () => {
         { AttributeName: 'pk', AttributeType: 'S' },
         { AttributeName: 'sk', AttributeType: 'S' },
       ],
-      ProvisionedThroughput: { ReadCapacityUnits: 5, WriteCapacityUnits: 5 },
+      ProvisionedThroughput: { ReadCapacityUnits: 10, WriteCapacityUnits: 10 },
       TimeToLiveSpecification: { AttributeName: 'ttl', Enabled: true },
       BillingMode: Match.absent(),
     });
@@ -247,11 +247,12 @@ describe('Lambda functions', () => {
           CITYDESK_SSM_PREFIX: '/citydesk',
           DEMO_DAILY_REQUEST_CAP: '600',
           MCP_URL: '/mcp',
+          CLIENT_IP_HEADER: 'x-viewer-ip',
           CITYDESK_TABLE: { Ref: only(template.findResources('AWS::DynamoDB::Table'))[0] },
         },
       },
     });
-    expect(Object.keys(fn.Properties.Environment.Variables)).toHaveLength(7);
+    expect(Object.keys(fn.Properties.Environment.Variables)).toHaveLength(8);
     expect(fn.Properties.ReservedConcurrentExecutions).toBeUndefined();
     expect(fn.Properties.VpcConfig).toBeUndefined();
   });
@@ -531,7 +532,24 @@ describe('static client and CloudFront distribution', () => {
       expect([...(behaviour.AllowedMethods as string[])].sort()).toEqual(allMethods);
       // Legacy forwarding settings must not sit next to the policies.
       expect(behaviour.ForwardedValues).toBeUndefined();
+      // The visitor's address is handed to the origin on the way in.
+      expect(behaviour.FunctionAssociations).toEqual([
+        { EventType: 'viewer-request', FunctionARN: { 'Fn::GetAtt': [only(template.findResources('AWS::CloudFront::Function'))[0], 'FunctionARN'] } },
+      ]);
     }
+    // The static site needs no function.
+    expect(config.DefaultCacheBehavior.FunctionAssociations).toBeUndefined();
+  });
+
+  it('forwards the visitor address with a CloudFront function that overwrites what the visitor sent', () => {
+    const [, fn] = only(template.findResources('AWS::CloudFront::Function'));
+    expect(fn.Properties.FunctionConfig.Runtime).toBe('cloudfront-js-2.0');
+    expect(fn.Properties.AutoPublish).toBe(true);
+    // Run the deployed code the way CloudFront would.
+    const handler = new Function(`${fn.Properties.FunctionCode as string}; return handler;`)() as (event: unknown) => { headers: Record<string, { value: string }> };
+    const out = handler({ viewer: { ip: '203.0.113.7' }, request: { method: 'POST', uri: '/mcp', headers: { 'x-viewer-ip': { value: '10.0.0.1' }, authorization: { value: 'Bearer t' } } } });
+    expect(out.headers['x-viewer-ip']).toEqual({ value: '203.0.113.7' });
+    expect(out.headers.authorization).toEqual({ value: 'Bearer t' });
   });
 
   it('uploads the built client and invalidates the distribution', () => {
@@ -611,6 +629,7 @@ describe('cost guard rails', () => {
     }
     expect(counts).toEqual({
       'AWS::CloudFront::Distribution': 1,
+      'AWS::CloudFront::Function': 1,
       'AWS::CloudFront::OriginAccessControl': 1,
       'AWS::DynamoDB::Table': 1,
       'AWS::IAM::Policy': 3,

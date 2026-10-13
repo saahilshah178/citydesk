@@ -117,7 +117,8 @@ export function App() {
           url,
           // The token belongs to the configured server. It is never sent to another URL.
           token: url === current.mcpUrl ? current.mcpToken : undefined,
-          deviceId: current.deviceId,
+          // So does the device ID: another server, entered by hand in the drawer, gets a throwaway one.
+          deviceId: url === current.mcpUrl ? current.deviceId : crypto.randomUUID(),
           log,
           onToolsChanged: (list) => {
             if (session !== undefined && sessionRef.current === session) setTools(list);

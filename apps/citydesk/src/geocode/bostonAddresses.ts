@@ -114,12 +114,18 @@ export function withDailyBudget(
   limitPerDay: number,
   now: () => number = Date.now,
 ): Geocoder {
+  let refusedOn: string | undefined;
   return {
     name: geocoder.name,
     async geocode(text, city) {
       const day = new Date(now()).toISOString().slice(0, 10);
+      // Once over, stay over for the day without counting again.
+      if (refusedOn === day) throw new GeocodeBudgetError(limitPerDay);
       const used = await counter.increment(`geocodes#${geocoder.name}#${day}`, 2 * 86_400);
-      if (used > limitPerDay) throw new GeocodeBudgetError(limitPerDay);
+      if (used > limitPerDay) {
+        refusedOn = day;
+        throw new GeocodeBudgetError(limitPerDay);
+      }
       return geocoder.geocode(text, city);
     },
   };

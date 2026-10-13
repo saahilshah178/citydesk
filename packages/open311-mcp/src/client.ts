@@ -1,5 +1,5 @@
 import type { CityConfig, EndpointConfig } from './cities.ts';
-import { Open311Error } from './errors.ts';
+import { Open311Error, WriteBlockedError } from './errors.ts';
 import { haversineMeters, inBoundingBox } from './geo.ts';
 import { assertWriteAllowed, type Env } from './guard.ts';
 import { RateLimiter } from './rateLimiter.ts';
@@ -135,7 +135,18 @@ export class Open311Client {
     const pageSize = endpoint.pageSize ?? 100;
     const found = new Map<string, ServiceRequest>();
 
-    for (const window of this.dateWindows(endpoint, opts.startDate, opts.endDate)) {
+    const windows = this.dateWindows(endpoint, opts.startDate, opts.endDate);
+    const maxWindows = opts.maxWindows ?? 5;
+    if (windows.length > maxWindows) {
+      const days = (endpoint.maxDateSpanDays ?? 90) * maxWindows;
+      throw new Open311Error(
+        'invalid_request',
+        `That date range is too long: ${this.city.name} can be searched over at most ${days} days at a time. Narrow start_date and end_date.`,
+        { retryable: false, details: { max_days: days } },
+      );
+    }
+
+    for (const window of windows) {
       for (let page = 1; page <= maxPages && found.size < limit; page++) {
         const query = new URLSearchParams();
         if (opts.serviceCode) query.set('service_code', opts.serviceCode);
@@ -394,6 +405,9 @@ export class Open311Client {
           method,
           headers,
           body: form ? form.toString() : undefined,
+          // A write must land on the endpoint the guard approved and nowhere else: fetch would
+          // otherwise replay the POST, API key included, to wherever a 307 or 308 points.
+          redirect: method === 'POST' ? 'manual' : 'follow',
           signal: AbortSignal.timeout(this.timeoutMs),
         });
       } catch (cause) {
@@ -406,6 +420,13 @@ export class Open311Client {
           cause,
           details: { endpoint: endpoint.id },
         });
+      }
+
+      if (method === 'POST' && (res.type === 'opaqueredirect' || (res.status >= 300 && res.status < 400))) {
+        throw new WriteBlockedError(
+          `${where} answered a create request with a redirect. Refusing to follow it: the request was not sent anywhere else.`,
+          { endpoint: endpoint.id, status: res.status, location: res.headers.get('location') ?? undefined },
+        );
       }
 
       if (res.ok) {

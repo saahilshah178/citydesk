@@ -11,6 +11,19 @@ export interface StaticMapOptions {
   client?: Pick<GeoMapsClient, 'send'>;
   /** Street-level by default. */
   zoom?: number;
+  /**
+   * Runs before each request that actually reaches Amazon Location (not for cached images). Throw to
+   * refuse the request: this is where the daily allowance is enforced.
+   */
+  beforeRequest?: () => Promise<void>;
+}
+
+/** Thrown by a `beforeRequest` hook when the day's map allowance is used up. */
+export class MapBudgetError extends Error {
+  constructor(limit: number) {
+    super(`The daily allowance of ${limit} map images is used up.`);
+    this.name = 'MapBudgetError';
+  }
 }
 
 const clamp = (n: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, Math.round(n)));
@@ -27,6 +40,7 @@ export function createStaticMapProvider(opts: StaticMapOptions = {}): StaticMapP
     const key = `${lat},${long},${width}x${height}`;
     const hit = cache.get(key);
     if (hit) return hit;
+    await opts.beforeRequest?.();
 
     const out = await client.send(
       new GetStaticMapCommand({

@@ -187,15 +187,16 @@ the backend. A request that carries its own `system` or `modelId` is rejected.
 
 | Route | Does |
 | --- | --- |
-| `POST /api/converse` | Validates `{ messages, toolConfig? }` (256 kB, 80 messages, 32 tools, only text / toolUse / toolResult blocks), calls `ConverseCommand`, returns `{ message, stopReason, usage, latencyMs, modelLatencyMs }` |
+| `POST /api/converse` | Validates `{ messages, toolConfig? }` (96 kB, 80 messages, 32 tools, only text / toolUse / toolResult blocks), calls `ConverseCommand`, returns `{ message, stopReason, usage, latencyMs, modelLatencyMs }` |
 | `POST /api/speak` | `{ text }` up to 600 characters to `SynthesizeSpeechCommand` (mp3), returns `audio/mpeg` |
 | `GET /api/config` | `{ mcpUrl, mcpToken, modelId, voiceId, region, cityName, timeZone, toolResultFormat }` |
 
 Errors are JSON: `{ "error": { "code", "message" } }`. No CORS headers are sent, and POST bodies
 must be `application/json`, so another site cannot call the routes from a browser.
 
-**Limits.** Every route is rate-limited per IP per minute; `/api/converse` and `/api/speak` also
-count toward `DEMO_DAILY_REQUEST_CAP`. Both fail closed with 429 or 503 and a `retry-after` header:
+**Limits.** Every route is rate-limited per IP per minute. `/api/converse` and `/api/speak` also
+count toward `DEMO_DAILY_REQUEST_CAP`, but only once a request has passed validation and is about to
+call AWS, and a conversation counts one unit per 8 KB, so the cap bounds tokens as well as calls. Both fail closed with 429 or 503 and a `retry-after` header:
 when a limit is hit, when a setting is present but not a whole number, and when the counters cannot
 be read. The counters sit behind `CounterStore` in `server/limits.ts`. Locally the store is in
 memory. In Lambda the daily cap is one atomic counter in DynamoDB (`SharedDayCounter` in
@@ -284,6 +285,15 @@ The record saved by `--out` has `turns[]` (user text, reply, raw reply before th
 with arguments, outcome, error and duration, model and tool timings, token usage, each expectation
 with expected, actual and pass), a `summary`, an overall `pass`, and a `run` block (MCP URL and
 server, model, region, device ID, tool lists).
+
+## Known gap in the dedicated-origin sandbox mode
+
+The default sandbox (same host, opaque origin) isolates a card from the page and from the network
+except for what its CSP allows. If you set `VITE_SANDBOX_URL` to a separate origin instead, the card
+shares that origin with the proxy page, and `sandbox.html` carries no policy of its own, so a card
+could reach the network through the proxy frame (`parent.fetch`). Only use that mode with card
+servers you trust, or serve `sandbox.html` from that origin with a restrictive
+`Content-Security-Policy` header.
 
 ## What has not been run
 

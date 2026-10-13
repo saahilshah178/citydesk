@@ -12,6 +12,8 @@ export class FakeDynamo {
   readonly commands: Array<{ name: string; input: Record<string, unknown> }> = [];
   /** Page size for Query, to exercise pagination. */
   pageSize = 1000;
+  /** Items returned by Query so far: a stand-in for read capacity consumed. */
+  itemsRead = 0;
 
   private key(pk: unknown, sk: unknown): string {
     return `${String(pk)}\u0000${String(sk)}`;
@@ -34,14 +36,20 @@ export class FakeDynamo {
     if (command instanceof QueryCommand) {
       const values = command.input.ExpressionAttributeValues as Record<string, string>;
       const prefix = values[':prefix'];
+      const from = values[':from'];
       const all = [...this.items.values()]
-        .filter((i) => i.pk === values[':pk'] && (prefix === undefined || String(i.sk).startsWith(prefix)))
+        .filter((i) => i.pk === values[':pk'])
+        .filter((i) => prefix === undefined || String(i.sk).startsWith(prefix))
+        .filter((i) => from === undefined || String(i.sk) >= from)
         .sort((a, b) => String(a.sk).localeCompare(String(b.sk)));
+      if (command.input.ScanIndexForward === false) all.reverse();
       const start = command.input.ExclusiveStartKey as Item | undefined;
-      const from = start ? all.findIndex((i) => i.sk === start.sk) + 1 : 0;
-      const page = all.slice(from, from + this.pageSize);
-      const more = from + this.pageSize < all.length;
+      const begin = start ? all.findIndex((i) => i.sk === start.sk) + 1 : 0;
+      const size = Math.min(this.pageSize, (command.input.Limit as number | undefined) ?? Infinity);
+      const page = all.slice(begin, begin + size);
+      const more = begin + size < all.length;
       const last = page.at(-1);
+      this.itemsRead += page.length;
       return { Items: structuredClone(page), LastEvaluatedKey: more && last ? { pk: last.pk, sk: last.sk } : undefined };
     }
     if (command instanceof UpdateCommand) {

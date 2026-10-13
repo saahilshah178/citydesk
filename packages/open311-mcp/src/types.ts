@@ -82,6 +82,12 @@ export interface SearchRequestsOptions {
   limit?: number;
   /** Stop after this many pages per date window. Default 10. */
   maxPages?: number;
+  /**
+   * Most date windows one search may walk (a window is the longest span the server accepts, 90 days
+   * for most). Default 5, a little over a year. A longer range is refused rather than turned into
+   * dozens of upstream calls.
+   */
+  maxWindows?: number;
   /** Ask for `extensions=true` where supported. */
   extensions?: boolean;
 }

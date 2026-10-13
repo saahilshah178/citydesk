@@ -38,7 +38,7 @@ from" column names the application file that makes the call.
 | --- | --- | --- | --- | --- | --- |
 | **AWS Lambda**: MCP server function | deploy Region | Runs the MCP server (Streamable HTTP) behind a public Function URL. Node.js 24, arm64, 512 MB, 20 s. | Resource policy on the function: `lambda:InvokeFunctionUrl` (auth type `NONE`) and `lambda:InvokeFunction` (only via the Function URL) for principal `*`. | `infra/lib/citydesk-stack.ts` (`nodeFunction('Mcp', …)`, `addFunctionUrl`) | Handler `apps/citydesk/src/lambda.ts`, through `toFunctionUrlHandler` in `packages/open311-mcp/src/adapters.ts` |
 | **AWS Lambda**: client API function | deploy Region | Backend of the web client: one assistant turn through Bedrock, speech through Polly. Node.js 24, arm64, 512 MB, 30 s. Public Function URL. | Same two resource-policy statements as above, on this function. | `infra/lib/citydesk-stack.ts` (`nodeFunction('ClientApi', …)`, `addFunctionUrl`) | Handler `apps/sim-client/server/lambda.ts` |
-| **Amazon DynamoDB** | deploy Region | Table `citydesk-user-requests` (`pk`, `sk`, TTL on `ttl`): each user's filed and followed requests. Provisioned 5 RCU / 5 WCU. | **MCP function:** `dynamodb:BatchGetItem`, `BatchWriteItem`, `ConditionCheckItem`, `DeleteItem`, `GetItem`, `PutItem`, `Query`, `Scan`, `UpdateItem` on the table ARN. **Client API function:** `dynamodb:UpdateItem` on the table, only for items whose partition key is `COUNTER` (`dynamodb:LeadingKeys` condition). | `infra/lib/citydesk-stack.ts` (`UserRequests`) | `apps/citydesk/src/store/dynamo.ts` (`GetCommand`, `PutCommand`, `QueryCommand`, `UpdateCommand`): tracked requests, home address, sandbox requests, hourly filing counters. `apps/sim-client/server/aws.ts` (`SharedDayCounter`, `UpdateItemCommand`): the daily request cap |
+| **Amazon DynamoDB** | deploy Region | Table `citydesk-user-requests` (`pk`, `sk`, TTL on `ttl`): each user's filed and followed requests. Provisioned 10 RCU / 10 WCU. | **MCP function:** `dynamodb:BatchGetItem`, `BatchWriteItem`, `ConditionCheckItem`, `DeleteItem`, `GetItem`, `PutItem`, `Query`, `Scan`, `UpdateItem` on the table ARN. **Client API function:** `dynamodb:UpdateItem` on the table, only for items whose partition key is `COUNTER` (`dynamodb:LeadingKeys` condition). | `infra/lib/citydesk-stack.ts` (`UserRequests`) | `apps/citydesk/src/store/dynamo.ts` (`GetCommand`, `PutCommand`, `QueryCommand`, `UpdateCommand`): tracked requests, home address, sandbox requests, hourly filing counters. `apps/sim-client/server/aws.ts` (`SharedDayCounter`, `UpdateItemCommand`): the daily request cap |
 | **Amazon Location Service**: Places (place index) | deploy Region | Place index `citydesk-places` (Esri, intended use `Storage`): geocodes spoken addresses and landmarks with `SearchPlaceIndexForText`. | **MCP function:** `geo:SearchPlaceIndexForText` on `arn:aws:geo:<region>:<account>:place-index/citydesk-places`. | `infra/lib/citydesk-stack.ts` (`Places`) | `apps/citydesk/src/geocode/amazonLocation.ts` (`SearchPlaceIndexForTextCommand` with `FilterBBox`), wired in `apps/citydesk/src/bootstrap.ts`, used by `report_issue` and `find_nearby_reports` in `apps/citydesk/src/tools.ts` |
 | **Amazon Location Service**: Maps | deploy Region | Static map image for the issue card, through the newer Maps API (`GetStaticMap`). It needs no resource in the stack. | **MCP function:** `geo-maps:GetStaticMap` on `arn:aws:geo-maps:<region>::provider/default`. | `infra/lib/citydesk-stack.ts` (statement `StaticMaps`) | `apps/citydesk/src/aws/staticMap.ts` (`GetStaticMapCommand`), served to the cards by the `static_map` tool in `apps/citydesk/src/staticMapTool.ts` |
 | **Amazon Bedrock** | deploy Region for the call. An inference profile may run the request in other Regions. | The assistant model, through the Converse API with tool use. Model chosen by `BEDROCK_MODEL_ID` at synth time. | **Client API function:** `bedrock:InvokeModel`, scoped to the configured model. See [Bedrock permissions](#bedrock-permissions). | `infra/lib/bedrock.ts`, applied in `infra/lib/citydesk-stack.ts` | `apps/sim-client/server/bedrock.ts` (`ConverseCommand` with `toolConfig`), behind `POST /api/converse` in `apps/sim-client/server/app.ts`. Also called directly by `apps/sim-client/scripts/conversation.ts` and `scripts/smoke.ts` |
@@ -128,12 +128,27 @@ the `x-amz-content-sha256` header"
 MCP is JSON-RPC over POST, and standard MCP clients do not send that header. The consequence: both
 Function URLs can be called directly by anyone who has the URL, and the application is the only
 thing that says no. The stack hands `DEMO_DAILY_REQUEST_CAP` to the client API function, which
-enforces it in `apps/sim-client/server/limits.ts`: every `/api/converse` and `/api/speak` request
-adds one to a counter in DynamoDB (`apps/sim-client/server/aws.ts`, shared by all warm instances),
-and requests past the cap are refused before any Bedrock or Polly call. A per-address limit of 40
-requests a minute sits in front of it. The MCP function has its own ceilings: 10 new reports per
-household and 200 overall per hour (`apps/citydesk/src/tools.ts`), and a per-minute budget for calls
-to Boston.
+enforces it in `apps/sim-client/server/limits.ts`. A request counts toward the cap only after it has
+been validated and is about to call Bedrock or Polly, so junk requests cannot use up the day, and a
+conversation counts one unit per 8 KB sent to the model, so the cap bounds tokens and not just calls.
+The counter lives in DynamoDB (`apps/sim-client/server/aws.ts`) and is shared by all warm instances;
+if it cannot be read, requests are refused. A per-address limit of 40 requests a minute sits in front.
+
+The MCP function protects itself in `apps/citydesk/src/app.ts` and `apps/citydesk/src/tools.ts`:
+
+- 60 requests a minute per visitor and 300 per connecting address, in memory per instance.
+- New reports per clock hour: 20 per network address, 10 per household, 100 overall, counted in
+  DynamoDB. Refused attempts are not counted against anyone else.
+- Paid Amazon Location calls per day: 1,000 geocodes and 2,000 map images, counted only when a
+  request actually reaches AWS (repeats are answered from a cache).
+- Boston's per-minute request budget is split between duplicate checks and status lookups, so a
+  flood of one cannot stop the other.
+
+**Who is "one visitor".** Behind CloudFront a function sees an edge node's address. A CloudFront
+function (`ViewerAddress` in `infra/lib/citydesk-stack.ts`) writes the visitor's address into an
+`x-viewer-ip` header, replacing anything the visitor sent. A caller who goes straight to a Function
+URL can invent that header, so the per-visitor limits are a fairness measure; what bounds cost is the
+limit on the real connecting address and the daily ceilings, which no header changes.
 
 **Function URL permissions.** Since October 2025 a Function URL needs both `lambda:InvokeFunctionUrl`
 and `lambda:InvokeFunction` in the function's resource policy, even with auth type `NONE`, and
@@ -314,12 +329,13 @@ Demo volume assumed for the estimate, per month:
 | Service | Free tier class | Price beyond the free tier | Estimate at demo volume | Source |
 | --- | --- | --- | --- | --- |
 | Lambda | **Always free** (the price list carries it as a global free tier; the Free Tier docs use Lambda as their always-free example): 1,000,000 requests and 400,000 GB-seconds a month | USD 0.20 per million requests; USD 0.0000133334 per GB-second on arm64 | USD 0. Unfree it would be about USD 0.11 | [Lambda pricing](https://aws.amazon.com/lambda/pricing/) |
-| DynamoDB | **Monthly free tier, no end date stated**: 25 RCU, 25 WCU and 25 GB a month, per Region and payer account, provisioned capacity, Standard table class. "Available on both plans" | USD 0.00013 per RCU-hour, USD 0.00065 per WCU-hour, USD 0.25 per GB-month | USD 0. If other tables in the account already use the 25/25 allowance: about USD 2.85 for 5 RCU + 5 WCU | [DynamoDB provisioned pricing](https://aws.amazon.com/dynamodb/pricing/provisioned/) |
+| DynamoDB | **Monthly free tier, no end date stated**: 25 RCU, 25 WCU and 25 GB a month, per Region and payer account, provisioned capacity, Standard table class. "Available on both plans" | USD 0.00013 per RCU-hour, USD 0.00065 per WCU-hour, USD 0.25 per GB-month | USD 0. If other tables in the account already use the 25/25 allowance: about USD 5.70 for 10 RCU + 10 WCU | [DynamoDB provisioned pricing](https://aws.amazon.com/dynamodb/pricing/provisioned/) |
 | Amazon Location: geocoding with stored results | **Pay per use.** The Location free tier (first 3 months) lists 20,000 "Core" requests a month; nothing found says it includes stored results | USD 4.00 per 1,000 geocodes with results stored. A single-use geocode is USD 0.50 per 1,000 | 600 × USD 0.004 = **USD 2.40** | [Location pricing](https://aws.amazon.com/location/pricing/), [Places pricing](https://docs.aws.amazon.com/location/latest/developerguide/places-pricing.html) |
 | Amazon Location: static maps | Free for the first 3 months of use: 5,000 static map requests a month. Then pay per use | USD 0.50 per 1,000 requests | USD 0 in the first 3 months, then 600 × USD 0.0005 = USD 0.30 | [Location pricing](https://aws.amazon.com/location/pricing/), [Maps pricing](https://docs.aws.amazon.com/location/latest/developerguide/maps-pricing.html) |
 | Bedrock | **Pay per use**, no free tier | Per token, set by the model. Example: Amazon Nova Lite is USD 0.00006 per 1,000 input tokens and USD 0.00024 per 1,000 output tokens | With Nova Lite: 18M input + 0.9M output tokens = **about USD 1.30**. A larger model costs proportionally more: multiply by its per-token price | [Bedrock pricing](https://aws.amazon.com/bedrock/pricing/) |
 | Polly | Standard voices: 5 million characters a month, no time limit stated. Neural: 1 million a month "for the first 12 months" (check your account) | Neural USD 16 per million characters; standard USD 4; generative USD 30; long-form USD 100 | 750,000 neural characters: **USD 12.00**, or USD 0 inside the neural free tier. `POLLY_ENGINE=standard` would be USD 0 to 3.00 | [Polly pricing](https://aws.amazon.com/polly/pricing/) |
 | CloudFront (pay as you go) | **Always free** (the page's own words): 1 TB out, 10,000,000 HTTP/HTTPS requests a month. Origin fetches from AWS origins are free. The first 1,000 invalidation paths a month are free | USD 0.085 per GB (US, first 10 TB); USD 0.0100 per 10,000 HTTPS requests | USD 0 | [CloudFront pay-as-you-go pricing](https://aws.amazon.com/cloudfront/pricing/pay-as-you-go/) |
+| CloudFront Functions | Listed on the CloudFront pay-as-you-go page as free for the first 2,000,000 invocations a month (not re-checked for this change) | USD 0.10 per million invocations | USD 0: one invocation per `/api/*` or `/mcp` request | [CloudFront pay-as-you-go pricing](https://aws.amazon.com/cloudfront/pricing/pay-as-you-go/) |
 | S3 | **Pay per use**: the S3 pricing page shows no storage allowance in its readable text, only the new-account credits | USD 0.023 per GB-month; USD 0.005 per 1,000 PUT; USD 0.0004 per 1,000 GET | Under USD 0.01: a few MB of client files plus about 25 MB of CDK assets | [S3 pricing](https://aws.amazon.com/s3/pricing/) |
 | Parameter Store | **No charge**: "No additional charge" for standard parameters and standard-throughput API calls | Advanced parameters USD 0.05 each per month (not used) | USD 0 | [Systems Manager pricing](https://aws.amazon.com/systems-manager/pricing/) |
 | KMS | AWS managed key: no monthly fee, but its requests are billed. **Free tier**: 20,000 requests a month across all Regions | USD 0.03 per 10,000 requests. A customer managed key would be USD 1 a month (not used) | USD 0: a few decrypts per cold start | [KMS pricing](https://aws.amazon.com/kms/pricing/) |
@@ -330,16 +346,17 @@ Demo volume assumed for the estimate, per month:
 USD 1.30 for Bedrock with a small model, and USD 0 to 12 for Polly depending on the engine and free
 tier. A larger Bedrock model is the one number that can move this a lot.
 
-**Idle cost: USD 0**, as long as the table's 5/5 capacity fits in the account's DynamoDB free tier
-(otherwise about USD 2.85 a month). Nothing else in the stack charges while unused, apart from cents of S3 storage.
+**Idle cost: USD 0**, as long as the table's 10/10 capacity fits in the account's DynamoDB free tier
+(otherwise about USD 5.70 a month). Nothing else in the stack charges while unused, apart from cents of S3 storage.
 
 **Worst case.** The public endpoints have ceilings so that a stranger with the demo token cannot
 run up a bill:
 
-- `DEMO_DAILY_REQUEST_CAP` defaults to 600 metered requests a day. Each `/api/converse` call and each
-  `/api/speak` call counts as one, so a spoken assistant turn uses about three. A month at the cap is
-  about 6,000 turns, twice the volume assumed above: on the order of USD 24 for neural Polly and
-  USD 3 for Nova Lite.
+- `DEMO_DAILY_REQUEST_CAP` defaults to 600 units a day. Each `/api/speak` call is one unit and each
+  `/api/converse` call is one unit per 8 KB of conversation (a normal turn is one or two), so a spoken
+  assistant turn uses about three. A month at the cap is about 6,000 turns, twice the volume assumed
+  above: on the order of USD 24 for neural Polly and USD 3 for Nova Lite. Because the cap follows
+  size, it also bounds input tokens: at most about 4.8 MB of text a day reaches the model.
 - `CITYDESK_MAX_GEOCODES_PER_DAY` defaults to 1,000 Amazon Location geocodes a day (USD 4 a day at the
   stored-result price if it were hit every day). Past it, street addresses still resolve from the
   bundled Boston address index; landmarks and intersections do not until the next day.
@@ -372,6 +389,10 @@ been exercised:
   ([forward the Authorization header](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/add-origin-custom-headers.html#add-origin-custom-headers-forward-authorization)).
 - That the two `AWS::Lambda::Permission` resources CDK emits are enough for a new account's public
   Function URL.
+- The `ViewerAddress` CloudFront function. Its code is executed in the stack tests, but not at an
+  edge. If `/api/*` or `/mcp` answers 503 right after a deploy, look there first.
+- The `dynamodb:LeadingKeys` condition that limits the client API function to the `COUNTER`
+  partition.
 - `nodejs24.x` on arm64 in the deploy Region, and that the app's real handlers bundle cleanly as ES
   modules (the tests bundle small stand-ins).
 - `make deploy`, `make destroy`, `scripts/ensure-params.ts`, `scripts/bootstrap.ts` and

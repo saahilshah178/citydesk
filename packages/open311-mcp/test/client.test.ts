@@ -162,6 +162,19 @@ describe('request search', () => {
     expect(calls.at(-1)!.url.searchParams.get('start_date')).toBe('2026-04-01T00:00:00Z');
   });
 
+  it('refuses a date range that would take more than a few windows, before any upstream call', async () => {
+    const { c, calls } = client(BOSTON, [() => jsonResponse([])]);
+    const err = await c
+      .searchRequests({ startDate: new Date('1990-01-01T00:00:00Z'), endDate: new Date('2026-10-01T00:00:00Z') })
+      .catch((e: unknown) => e);
+    expect(err).toMatchObject({ code: 'invalid_request', retryable: false });
+    expect((err as Open311Error).message).toMatch(/at most 450 days/);
+    expect(calls).toHaveLength(0);
+    // A caller that really wants a long history can raise the bound.
+    await c.searchRequests({ startDate: new Date('2025-01-01T00:00:00Z'), endDate: new Date('2026-10-01T00:00:00Z'), maxWindows: 10 });
+    expect(calls.length).toBeGreaterThan(5);
+  });
+
   it('normalizes SeeClickFix rows: numeric IDs become strings, offsets become UTC', async () => {
     const { c, calls } = client(NEW_HAVEN, [
       (call) => (call.url.searchParams.get('page') ? jsonResponse([]) : jsonResponse(fixture('seeclickfix/requests.json'))),

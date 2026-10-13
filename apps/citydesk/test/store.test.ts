@@ -100,7 +100,12 @@ describe('DynamoStore specifics', () => {
     await store.sandboxStore().put({ service_request_id: 'SB-10001', token: 't', service_code: 'sandbox-pothole', service_name: 'Pothole', requested_at: NOW });
 
     const keys = [...fake.items.values()].map((i) => `${String(i.pk)} | ${String(i.sk)}`).sort();
-    expect(keys).toEqual(['SANDBOX | REQ#SB-10001', 'USER#alice | PROFILE#home', 'USER#alice | REQ#boston/a']);
+    expect(keys).toEqual([
+      `SANDBOX | T#${String(NOW).padStart(15, '0')}#SB-10001`,
+      'SANDBOXID | SB-10001',
+      'USER#alice | PROFILE#home',
+      'USER#alice | REQ#boston/a',
+    ]);
     const nowSeconds = Math.floor(NOW / 1000);
     for (const item of fake.items.values()) {
       expect(item.ttl).toBeGreaterThan(nowSeconds + 80 * 86_400);
@@ -135,9 +140,36 @@ describe('DynamoStore specifics', () => {
     for (let i = 0; i < 3; i++) {
       await sandbox.put({ service_request_id: `SB-${i}`, token: `t${i}`, service_code: 'sandbox-pothole', service_name: 'Pothole', requested_at: NOW + i });
     }
-    expect(await sandbox.list()).toHaveLength(3);
+    expect((await sandbox.list()).map((r) => r.service_request_id)).toEqual(['SB-2', 'SB-1', 'SB-0']);
     expect(await sandbox.get('SB-1')).toMatchObject({ token: 't1' });
     expect(await sandbox.get('SB-9')).toBeUndefined();
+  });
+
+  it('reads only the sandbox requests it is asked for, however many are stored', async () => {
+    const fake = new FakeDynamo();
+    const store = new DynamoStore({ tableName: 'citydesk-test', client: fake, now: () => NOW });
+    const sandbox = store.sandboxStore();
+    const HOUR = 3_600_000;
+    // 700 requests over the past 29 days: what three and a half hours at the filing cap would leave behind.
+    for (let i = 0; i < 700; i++) {
+      await sandbox.put({ service_request_id: `SB-${i}`, token: `t${i}`, service_code: 'sandbox-pothole', service_name: 'Pothole', requested_at: NOW - i * HOUR });
+    }
+    fake.itemsRead = 0;
+    const lastDay = await sandbox.list({ since: NOW - 20 * HOUR });
+    expect(lastDay).toHaveLength(21);
+    expect(fake.itemsRead).toBe(21);
+
+    fake.itemsRead = 0;
+    const newest = await sandbox.list({ limit: 50 });
+    expect(newest.map((r) => r.service_request_id).slice(0, 3)).toEqual(['SB-0', 'SB-1', 'SB-2']);
+    expect(newest).toHaveLength(50);
+    expect(fake.itemsRead).toBe(50);
+
+    // A lookup by ID is one GetItem, not a query.
+    const queries = fake.commands.filter((c) => c.name === 'QueryCommand').length;
+    expect(await sandbox.get('SB-650')).toMatchObject({ token: 't650' });
+    expect(fake.commands.filter((c) => c.name === 'QueryCommand')).toHaveLength(queries);
+    expect(fake.commands.at(-1)).toMatchObject({ name: 'GetCommand', input: { Key: { pk: 'SANDBOXID', sk: 'SB-650' } } });
   });
 });
 

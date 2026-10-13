@@ -113,7 +113,7 @@ Regions, costs, and the file that defines and calls each one):
 | Amazon Polly | Speaks every reply | `apps/sim-client/server/app.ts` |
 | Amazon S3 and CloudFront | Serve the client and put the API and the MCP endpoint on one origin | `infra/lib/citydesk-stack.ts` |
 | AWS Systems Manager Parameter Store | Bearer token, API keys, allowed origins | `apps/citydesk/src/aws/parameters.ts` |
-| AWS CDK | The whole stack, with 49 template tests | `infra/` |
+| AWS CDK | The whole stack, with 50 template tests | `infra/` |
 
 **[after deploy]** Add the Region, the model ID you chose, and one sentence each on how Bedrock tool
 use, Polly and Amazon Location behaved in the live demo.
@@ -130,7 +130,7 @@ use, Polly and Amazon Location behaved in the live demo.
 
 **What we did.** We built `open311-mcp`, a new open-source package: a city-agnostic MCP server and
 typed TypeScript client for Open311 GeoReport v2. It was written during the hackathon and is
-publishable on its own (`npm publish --dry-run` passes; 60 tests).
+publishable on its own (`npm publish --dry-run` passes; 64 tests).
 
 **How it works.** A city is a config entry: base URL, test URL, API key variable, rate limit and
 bounding box. The server exposes six tools (`list_cities`, `list_services`,
@@ -259,7 +259,7 @@ onboarding went, and whether you would build with it again. The full answers are
 ### AWS CDK
 
 - **Used for:** The whole deployment, with template tests.
-- **Worked well:** `cdk synth` needs no credentials, so 49 tests check the template and real esbuild
+- **Worked well:** `cdk synth` needs no credentials, so 50 tests check the template and real esbuild
   bundling on every change. `addFunctionUrl`, `FunctionUrlOrigin` and the S3 origin access control
   make a three-behaviour distribution short.
 - **Needs work:** `NodejsFunction` cannot find esbuild in a pnpm workspace unless the CLI is started

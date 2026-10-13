@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import type { SandboxRequestRecord, SandboxStore } from 'open311-mcp';
+import { selectRecent, type SandboxRequestRecord, type SandboxStore } from 'open311-mcp';
 import type { HomeAddress, TrackedRequest, UserStore } from './types.ts';
 
 interface Snapshot {
@@ -102,7 +102,7 @@ export class MemoryStore implements UserStore {
         this.persist();
       },
       get: async (id) => this.data.sandbox[id],
-      list: async () => Object.values(this.data.sandbox),
+      list: async (options) => selectRecent(Object.values(this.data.sandbox), options),
     };
   }
 }
