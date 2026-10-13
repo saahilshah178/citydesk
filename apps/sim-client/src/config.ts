@@ -64,7 +64,9 @@ export async function loadClientConfig(): Promise<ClientConfig> {
   return {
     // The backend's answer wins because its token belongs to that URL. Without a backend, the
     // client still connects (for manual tool calls) to the build-time URL, without a token.
-    mcpUrl: runtime?.mcpUrl || buildTimeUrl || DEFAULT_MCP_URL,
+    // A relative URL ("/mcp") means the MCP server is served from this page's own origin, which is
+    // how the deployed client reaches it through CloudFront.
+    mcpUrl: new URL(runtime?.mcpUrl || buildTimeUrl || DEFAULT_MCP_URL, window.location.href).href,
     mcpToken: runtime?.mcpToken ?? undefined,
     deviceId: getDeviceId(),
     sandbox: resolveSandbox(import.meta.env['VITE_SANDBOX_URL'] as string | undefined, window.location.href),

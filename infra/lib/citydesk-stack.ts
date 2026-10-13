@@ -176,8 +176,21 @@ export class CityDeskStack extends cdk.Stack {
         POLLY_ENGINE: props.pollyEngine ?? DEFAULTS.pollyEngine,
         CITYDESK_SSM_PREFIX: SSM_PREFIX,
         DEMO_DAILY_REQUEST_CAP: String(props.demoDailyRequestCap ?? DEFAULTS.demoDailyRequestCap),
+        // The browser reaches the MCP server on the page's own origin, through the /mcp behaviour.
+        MCP_URL: '/mcp',
+        // The daily request cap is one atomic counter in the table, shared by every warm instance.
+        CITYDESK_TABLE: this.table.tableName,
       },
     });
+    this.clientApiFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        sid: 'CountDailyRequests',
+        actions: ['dynamodb:UpdateItem'],
+        resources: [this.table.tableArn],
+        // Only items in the COUNTER partition: this function cannot read or change anyone's requests.
+        conditions: { 'ForAllValues:StringEquals': { 'dynamodb:LeadingKeys': ['COUNTER'] } },
+      }),
+    );
 
     const grants = bedrockInvokeGrants(props.bedrockModelId, {
       partition: this.partition,

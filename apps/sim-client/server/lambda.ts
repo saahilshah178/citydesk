@@ -11,8 +11,10 @@
  * header with an origin request policy and set `CLIENT_IP_HEADER=cloudfront-viewer-address`.
  */
 
-import { CLIENT_IP_HEADER, handleApi } from './app.ts';
-import { sharedConfig } from './config.ts';
+import { CLIENT_IP_HEADER, createApiHandler, handleApi } from './app.ts';
+import { SharedDayCounter, ssmConfigSource } from './aws.ts';
+import { cachedConfig, envSource, layeredSource, loadConfig, sharedConfig, type AppConfig } from './config.ts';
+import { createLimiter } from './limits.ts';
 
 /** The fields of a Function URL event (payload format 2.0) that the adapter reads. */
 export interface FunctionUrlEvent {
@@ -100,6 +102,26 @@ export function createLambdaHandler(
   return async (event) => toResult(await handle(toRequest(event, await options())));
 }
 
-export const handler = createLambdaHandler(handleApi, async () => ({
-  clientIpHeader: (await sharedConfig()).clientIpHeader,
+/**
+ * The deployed handler. In Lambda the MCP token comes from Parameter Store (CITYDESK_SSM_PREFIX) and
+ * the daily cap is counted in DynamoDB (CITYDESK_TABLE); without those variables it behaves exactly
+ * like the local server.
+ */
+function deployedApi(env: Record<string, string | undefined> = process.env): {
+  handle: (request: Request) => Promise<Response>;
+  config: () => Promise<AppConfig>;
+} {
+  if (!env['CITYDESK_SSM_PREFIX'] && !env['CITYDESK_TABLE']) return { handle: handleApi, config: sharedConfig };
+  const source = env['CITYDESK_SSM_PREFIX']
+    ? layeredSource(ssmConfigSource({ prefix: env['CITYDESK_SSM_PREFIX'] }), envSource(env))
+    : envSource(env);
+  const config = cachedConfig(() => loadConfig(source));
+  const limiter = env['CITYDESK_TABLE'] ? createLimiter(new SharedDayCounter({ tableName: env['CITYDESK_TABLE'] })) : createLimiter();
+  return { handle: createApiHandler({ config, limiter }), config };
+}
+
+const deployed = deployedApi();
+
+export const handler = createLambdaHandler(deployed.handle, async () => ({
+  clientIpHeader: (await deployed.config()).clientIpHeader,
 }));

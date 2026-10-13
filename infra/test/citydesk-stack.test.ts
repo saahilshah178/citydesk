@@ -246,10 +246,12 @@ describe('Lambda functions', () => {
           POLLY_ENGINE: 'neural',
           CITYDESK_SSM_PREFIX: '/citydesk',
           DEMO_DAILY_REQUEST_CAP: '2000',
+          MCP_URL: '/mcp',
+          CITYDESK_TABLE: { Ref: only(template.findResources('AWS::DynamoDB::Table'))[0] },
         },
       },
     });
-    expect(Object.keys(fn.Properties.Environment.Variables)).toHaveLength(5);
+    expect(Object.keys(fn.Properties.Environment.Variables)).toHaveLength(7);
     expect(fn.Properties.ReservedConcurrentExecutions).toBeUndefined();
     expect(fn.Properties.VpcConfig).toBeUndefined();
   });
@@ -361,11 +363,20 @@ describe('IAM: client API role', () => {
     };
   };
   const polly: Statement = { Sid: 'SynthesizeSpeech', Effect: 'Allow', Action: 'polly:SynthesizeSpeech', Resource: '*' };
+  // The shared daily request cap: one atomic counter, and only in the COUNTER partition.
+  const counter = (t: Template): Statement => ({
+    Sid: 'CountDailyRequests',
+    Effect: 'Allow',
+    Action: 'dynamodb:UpdateItem',
+    Resource: { 'Fn::GetAtt': [only(t.findResources('AWS::DynamoDB::Table'))[0], 'Arn'] },
+    Condition: { 'ForAllValues:StringEquals': { 'dynamodb:LeadingKeys': ['COUNTER'] } },
+  });
 
   it('grants exactly the documented statements for a cross-Region inference profile ID', () => {
     const profile = arn('arn:', PARTITION, ':bedrock:', REGION, ':', ACCOUNT, `:inference-profile/${MODEL_ID}`);
     expect(roleStatements(template, CLIENT_API_FUNCTION)).toEqual([
       logStatement(template),
+      counter(template),
       { Sid: 'InvokeAssistantInferenceProfile', Effect: 'Allow', Action: 'bedrock:InvokeModel', Resource: profile },
       {
         Sid: 'InvokeAssistantModelThroughProfile',
@@ -383,6 +394,7 @@ describe('IAM: client API role', () => {
     const plain = synth({ bedrockModelId: 'example.test-model-v1:0' }, { bundle: false });
     expect(roleStatements(plain, CLIENT_API_FUNCTION)).toEqual([
       logStatement(plain),
+      counter(plain),
       {
         Sid: 'InvokeAssistantModel',
         Effect: 'Allow',
@@ -400,6 +412,7 @@ describe('IAM: client API role', () => {
     const profile = arn('arn:', PARTITION, ':bedrock:', REGION, ':', ACCOUNT, `:inference-profile/${id}`);
     expect(roleStatements(global, CLIENT_API_FUNCTION)).toEqual([
       logStatement(global),
+      counter(global),
       { Sid: 'InvokeAssistantInferenceProfile', Effect: 'Allow', Action: 'bedrock:InvokeModel', Resource: profile },
       {
         Sid: 'InvokeAssistantModelThroughProfile',
