@@ -405,7 +405,7 @@ function renderList(ctx: CardContext, result: IssueResult, views: IssueView[], s
         'ol',
         { class: 'rows', 'aria-label': copy.headline },
         ...shown.map((view, index) =>
-          row(view, view === featured, result.outcome, env, () => {
+          row(view, view === featured, result.outcome === 'error' ? 'requests' : result.outcome, env, () => {
             if (view !== featured) renderList(ctx, result, views, index);
           }),
         ),
@@ -467,6 +467,9 @@ function render(payload: ToolPayload, ctx: CardContext): void {
       fallback: text(data.spoken_summary),
     });
   }
+
+  // A failure always carries an error object and was handled above; this covers a malformed one.
+  if (data.outcome === 'error') return renderPlainError(ctx, text(data.spoken_summary) || payload.text);
 
   const views = (Array.isArray(data.requests) ? data.requests : []).filter(isIssueView);
   const first = views[0];

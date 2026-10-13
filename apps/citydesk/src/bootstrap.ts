@@ -10,6 +10,7 @@
 import { createStaticMapProvider } from './aws/staticMap.ts';
 import { IndexedAddressDirectory } from './addressIndex.ts';
 import { BostonAddressDirectory, type AddressDirectory } from './addresses.ts';
+import { cardHooks } from './cardsHook.ts';
 import { AmazonLocationGeocoder } from './geocode/amazonLocation.ts';
 import { BostonAddressGeocoder, GeocoderChain, withCooldown } from './geocode/bostonAddresses.ts';
 import type { Geocoder } from './geocode/types.ts';
@@ -101,5 +102,6 @@ export async function buildRuntime(options: BootstrapOptions): Promise<Bootstrap
       maxFilingsPerHour: positiveNumber(env.CITYDESK_MAX_FILINGS_PER_HOUR, 200),
     },
   });
-  return { runtime, hooks: {}, summary };
+  summary.push('cards: issue card and schedule card (MCP Apps)');
+  return { runtime, hooks: cardHooks(), summary };
 }
