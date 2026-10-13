@@ -9,6 +9,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
+import { BOSTON as BOSTON_CITY } from 'open311-mcp';
 import { loadEnv, USER_AGENT } from './lib/env.ts';
 
 loadEnv();
@@ -24,8 +25,10 @@ interface CheckResult {
   data?: Record<string, unknown>;
 }
 
-const BOSTON = 'https://311.boston.gov/open311/v2';
-const BOSTON_DISCOVERY = 'https://311.boston.gov/open311/discovery.json';
+// The endpoint Boston's discovery document lists; see the note on BOSTON in open311-mcp.
+const BOSTON = BOSTON_CITY.production!.baseUrl;
+const BOSTON_DISCOVERY = BOSTON.replace(/\/v2$/, '/discovery.json');
+const BOSTON_PUBLIC = 'https://311.boston.gov/open311/v2';
 const SEECLICKFIX_TEST = 'https://test.seeclickfix.com/open311/v2';
 const CKAN = 'https://data.boston.gov/api/3/action';
 const TRASH_RESOURCE = 'fee8ee07-b8b5-4ee5-b540-5162590ba5c1';
@@ -82,6 +85,25 @@ const checks: Array<() => Promise<CheckResult>> = [
         detail: `${reqs.length} requests, newest ${newest}`,
         data: { count: reqs.length, newest },
       };
+    }),
+  () =>
+    check('boston.public_hostname', async () => {
+      // Informational: the same API behind the city's web firewall. It challenges automated clients.
+      const res = await fetch(`${BOSTON_PUBLIC}/services.json`, {
+        headers: { 'user-agent': USER_AGENT, accept: 'application/json' },
+        signal: AbortSignal.timeout(30_000),
+      });
+      const text = await res.text();
+      try {
+        const services = JSON.parse(text) as unknown[];
+        return { status: 'pass', detail: `${BOSTON_PUBLIC} answered with ${services.length} services` };
+      } catch {
+        return {
+          status: 'degraded',
+          detail: `${BOSTON_PUBLIC} answered HTTP ${res.status} with a firewall challenge page, not JSON. CityDesk uses the discovery endpoint (${BOSTON}) instead.`,
+          unblock: 'Nothing to fix. The challenge clears on its own; an API key (BOSTON_OPEN311_API_KEY) raises the request budget.',
+        };
+      }
     }),
   () =>
     check('boston.test_endpoint', async () => {

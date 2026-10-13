@@ -17,7 +17,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { BOSTON, Open311Client, haversineMeters, type CityConfig, type ServiceRequest } from 'open311-mcp';
+import { BOSTON, Open311Client, Open311Error, haversineMeters, type CityConfig, type ServiceRequest } from 'open311-mcp';
 import { wasOpenAt } from '../apps/citydesk/src/dedupe.ts';
 import { loadEnv, USER_AGENT } from './lib/env.ts';
 
@@ -55,12 +55,22 @@ const fetchStart = replayStart - windowDays * DAY_MS;
 async function loadDay(dayStart: number): Promise<ServiceRequest[]> {
   const file = resolve(cacheDir, `${ymd(dayStart)}.json`);
   if (!values.refresh && existsSync(file)) return JSON.parse(readFileSync(file, 'utf8')) as ServiceRequest[];
-  const rows = await client.searchRequests({
-    startDate: new Date(dayStart),
-    endDate: new Date(dayStart + DAY_MS - 1000),
-    limit: 20_000,
-    maxPages: 40,
-  });
+  let rows: ServiceRequest[] | undefined;
+  for (let attempt = 1; rows === undefined; attempt++) {
+    try {
+      rows = await client.searchRequests({
+        startDate: new Date(dayStart),
+        endDate: new Date(dayStart + DAY_MS - 1000),
+        limit: 20_000,
+        maxPages: 40,
+      });
+    } catch (err) {
+      // The city asked us to slow down: wait a few minutes and try the same day again.
+      if (!(err instanceof Open311Error) || !err.retryable || attempt >= 5) throw err;
+      console.error(`[replay] ${ymd(dayStart)}: ${err.code}, waiting ${attempt * 3} minutes`);
+      await new Promise((r) => setTimeout(r, attempt * 180_000));
+    }
+  }
   const slim = rows.map((r) => ({
     service_request_id: r.service_request_id,
     status: r.status,

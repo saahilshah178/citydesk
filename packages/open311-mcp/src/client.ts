@@ -413,6 +413,15 @@ export class Open311Client {
         try {
           return JSON.parse(text) as unknown;
         } catch {
+          // Web firewalls in front of some cities answer automated clients with an HTML challenge
+          // page and HTTP 200. That is a "slow down", not broken data, and retrying at once makes it worse.
+          if (/^\s*</.test(text) && /incapsula|captcha|challenge|access denied|cloudflare|bot/i.test(text.slice(0, 4000))) {
+            throw new Open311Error(
+              'rate_limited',
+              `${where} answered with a firewall challenge page instead of data. It is refusing automated requests from this address for now.`,
+              { status: res.status, details: { endpoint: endpoint.id, blocked_by: 'firewall' } },
+            );
+          }
           throw new Open311Error('bad_response', `${where} returned something that is not JSON.`, {
             status: res.status,
             retryable: false,

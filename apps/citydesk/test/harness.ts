@@ -4,6 +4,7 @@
  */
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import { readFileSync } from 'node:fs';
+import { BOSTON } from 'open311-mcp';
 import { resolve } from 'node:path';
 import { fakeFetch, fixtureJson, jsonResponse, type RecordedCall } from '../../../packages/open311-mcp/test/helpers.ts';
 import { createApp, DEVICE_HEADER } from '../src/app.ts';
@@ -14,6 +15,7 @@ import type { CityDeskServerHooks } from '../src/server.ts';
 export const POTHOLE_CODE = '9aaa7721-e212-4d16-a77e-d8f8d2f4ba28';
 export const TOKEN = 'test-token';
 export const NOW = Date.parse('2026-10-13T12:00:00Z');
+const BOSTON_HOST = new URL(BOSTON.production!.baseUrl).host;
 
 type Row = { service_request_id: string; [k: string]: unknown };
 const potholes = fixtureJson<Row[]>('boston/potholes_open.json');
@@ -50,7 +52,7 @@ export function harness(
     if (host === 'boston2-test.spotmobile.net') {
       throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ENOTFOUND' } });
     }
-    if (host === '311.boston.gov') {
+    if (host === BOSTON_HOST) {
       if (bostonDown) return jsonResponse('bad gateway', 503);
       if (pathname.endsWith('/services.json')) return jsonResponse(fixtureJson('boston/services.json'));
       if (pathname.endsWith('/requests.json')) {

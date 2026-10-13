@@ -229,3 +229,22 @@ time), **low** (papercut).
 - **Severity:** medium
 - **Workaround:** `docs/aws.md` marks what was confirmed and what was not.
 - **Suggestion:** One line on every pricing page: always free, trial, or credits only.
+
+## 17. Boston Open311: the public hostname turns into an HTML challenge page under steady use
+
+- **Task:** Download 60 days of requests for the duplicate replay while developing against the same
+  API.
+- **Steps taken:** Called `https://311.boston.gov/open311/v2/requests.json` at 8 requests a minute
+  with a descriptive User-Agent, plus a few interactive calls from the dev server.
+- **Expected vs actual:** Expected HTTP 429 with `Retry-After` when over the limit (the documented
+  limit is about 10 a minute). Actual: after about 18 minutes the host answered every request with
+  HTTP 200, `content-type: text/html`, and an Imperva/Incapsula JavaScript challenge page. Our client
+  parsed that as "not JSON", the replay crashed at day 39 of 60, and live tool calls failed. The
+  endpoint named in Boston's own discovery file (`boston2-production.spotmobile.net`) kept answering
+  normally.
+- **Severity:** high
+- **Workaround:** Use the endpoint the discovery document lists. The client now recognizes an HTML
+  challenge as `rate_limited` (retryable) instead of bad data, and the replay resumes from its cache
+  at a lower rate.
+- **Suggestion:** Exempt `/open311/` from the browser challenge or answer API clients with 429 and
+  `Retry-After`, and say in the developer docs which hostname API clients should use.

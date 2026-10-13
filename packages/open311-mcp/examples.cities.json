@@ -7,7 +7,7 @@
     "production": {
       "id": "boston",
       "kind": "production",
-      "baseUrl": "https://311.boston.gov/open311/v2",
+      "baseUrl": "https://boston2-production.spotmobile.net/open311/v2",
       "apiKeyEnv": "BOSTON_OPEN311_API_KEY",
       "rateLimitPerMinute": 10,
       "maxDateSpanDays": 90,

@@ -82,7 +82,7 @@ Haven on SeeClickFix.
     "production": {
       "id": "boston",
       "kind": "production",
-      "baseUrl": "https://311.boston.gov/open311/v2",
+      "baseUrl": "https://boston2-production.spotmobile.net/open311/v2",
       "apiKeyEnv": "BOSTON_OPEN311_API_KEY",
       "rateLimitPerMinute": 10,
       "maxDateSpanDays": 90,
@@ -226,6 +226,10 @@ MCP server factory, not only the Open311 one.
 Recorded on 2026-10-13. Details are in the project's
 [friction log](https://github.com/saahilshah178/citydesk/blob/main/FRICTION_LOG.md).
 
+- **Boston** is reached at the endpoint its discovery document lists
+  (`boston2-production.spotmobile.net`). The same API at `311.boston.gov/open311/v2` is behind a web
+  firewall that began answering our client with an HTML challenge page after about 18 minutes at
+  8 requests a minute; the client reports that as `rate_limited`, not as bad data.
 - **Boston** lists 6 fileable services, but requests of about 60 types are readable.
   `Open311Client.observedServices()` builds the read catalog from recent requests. Spatial parameters
   are ignored, page size tops out at 300, and comma-separated `service_request_id` lookups work.

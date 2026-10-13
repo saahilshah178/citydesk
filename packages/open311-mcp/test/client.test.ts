@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BOSTON, NEW_HAVEN, Open311Client, Open311Error, RateLimiter, type CityConfig } from '../src/index.ts';
 import { fakeFetch, fakeTime, fixture, fixtureJson, jsonResponse, type Route } from './helpers.ts';
 
-const BOSTON_BASE = 'https://311.boston.gov/open311/v2';
+const BOSTON_BASE = BOSTON.production!.baseUrl;
 
 function client(city: CityConfig, routes: Route[], env: Record<string, string | undefined> = {}) {
   const net = fakeFetch(...routes);
@@ -261,7 +261,19 @@ describe('rate limiting and retries', () => {
   });
 
   it('reports bad_response for a 200 that is not JSON', async () => {
-    const { c } = client(BOSTON, [() => new Response('<html></html>', { status: 200 })]);
+    const { c } = client(BOSTON, [() => new Response('plain text, not json', { status: 200 })]);
     await expect(c.listServices()).rejects.toMatchObject({ code: 'bad_response', retryable: false });
+  });
+
+  it('reports a firewall challenge page (HTML with HTTP 200) as rate_limited and does not hammer it', async () => {
+    // First bytes of what 311.boston.gov returned once its web firewall started challenging us.
+    const challenge =
+      '<html>\r\n<head>\r\n<META NAME="robots" CONTENT="noindex,nofollow">\r\n<script src="/_Incapsula_Resource?SWJIYLWA=5074a744e2e3"></script>';
+    const { c, calls } = client(BOSTON, [() => new Response(challenge, { status: 200, headers: { 'content-type': 'text/html' } })]);
+    const err = await c.listServices().catch((e: unknown) => e);
+    expect(err).toMatchObject({ code: 'rate_limited', retryable: true });
+    expect((err as Open311Error).message).toMatch(/challenge page/);
+    expect((err as Open311Error).details).toMatchObject({ blocked_by: 'firewall' });
+    expect(calls).toHaveLength(1);
   });
 });

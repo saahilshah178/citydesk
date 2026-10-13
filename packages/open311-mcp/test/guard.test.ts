@@ -66,13 +66,13 @@ describe('write guard', () => {
     }
     const { c, calls } = client(BOSTON, { ALLOW_PRODUCTION_WRITES: 'true' });
     await c.createRequest(input, 'production');
-    expect(calls[0]!.url.host).toBe('311.boston.gov');
+    expect(calls[0]!.url.host).toBe(new URL(BOSTON.production!.baseUrl).host);
   });
 
   it('refuses a "test" endpoint that points at the production server', () => {
     const miswired: CityConfig = {
       ...BOSTON,
-      test: { ...BOSTON.production!, id: 'boston-test', kind: 'test', baseUrl: 'https://311.boston.gov/open311/v2/' },
+      test: { ...BOSTON.production!, id: 'boston-test', kind: 'test', baseUrl: `${BOSTON.production!.baseUrl}/` },
     };
     expect(() => assertWriteAllowed(miswired, miswired.test!, {})).toThrow(/production server/);
   });

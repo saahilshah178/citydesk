@@ -45,7 +45,12 @@ export interface CityConfig {
 }
 
 /**
- * Boston, MA. Endpoints come from https://311.boston.gov/open311/discovery.json.
+ * Boston, MA. Both endpoints are the ones Boston's Open311 discovery document lists
+ * (https://311.boston.gov/open311/discovery.json). The same API also answers at
+ * https://311.boston.gov/open311/v2, but that hostname sits behind the city's web firewall, which
+ * starts answering automated clients with an HTML challenge page (HTTP 200) after a few minutes of
+ * steady requests, so the discovery endpoint is the one to use.
+ *
  * Reads need no key (about 10 requests a minute); BOSTON_OPEN311_API_KEY raises the limit.
  * The server ignores spatial filters, so area filtering happens in the client.
  */
@@ -57,7 +62,7 @@ export const BOSTON: CityConfig = {
   production: {
     id: 'boston',
     kind: 'production',
-    baseUrl: 'https://311.boston.gov/open311/v2',
+    baseUrl: 'https://boston2-production.spotmobile.net/open311/v2',
     apiKeyEnv: 'BOSTON_OPEN311_API_KEY',
     rateLimitPerMinute: 10,
     maxDateSpanDays: 90,
