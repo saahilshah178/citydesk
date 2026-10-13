@@ -1,0 +1,26 @@
+{
+  "name": "@citydesk/server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CityDesk MCP server: voice-first city service tools on Open311, with per-user memory.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/dev.ts",
+    "start": "tsx src/dev.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.3.1",
+    "open311-mcp": "workspace:*",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.3.1",
+    "@types/node": "^24.0.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.4"
+  }
+}
