@@ -1,0 +1,59 @@
+[
+  {
+    "id": "boston",
+    "name": "Boston",
+    "timeZone": "America/New_York",
+    "bbox": [-71.1912, 42.2279, -70.986, 42.3995],
+    "production": {
+      "id": "boston",
+      "kind": "production",
+      "baseUrl": "https://311.boston.gov/open311/v2",
+      "apiKeyEnv": "BOSTON_OPEN311_API_KEY",
+      "rateLimitPerMinute": 10,
+      "maxDateSpanDays": 90,
+      "pageParam": "page",
+      "pageSizeParam": "per_page",
+      "pageSize": 300,
+      "spatial": "none",
+      "textSearch": true,
+      "extensions": true
+    },
+    "test": {
+      "id": "boston-test",
+      "kind": "test",
+      "baseUrl": "https://boston2-test.spotmobile.net/open311/v2",
+      "apiKeyEnv": "BOSTON_OPEN311_API_KEY",
+      "rateLimitPerMinute": 10,
+      "pageParam": "page",
+      "pageSizeParam": "per_page",
+      "pageSize": 300,
+      "spatial": "none"
+    }
+  },
+  {
+    "id": "new-haven",
+    "name": "New Haven",
+    "timeZone": "America/New_York",
+    "bbox": [-72.998, 41.246, -72.861, 41.351],
+    "production": {
+      "id": "new-haven",
+      "kind": "production",
+      "baseUrl": "https://seeclickfix.com/open311/v2",
+      "apiKeyEnv": "SEECLICKFIX_API_KEY",
+      "rateLimitPerMinute": 20,
+      "pageParam": "page",
+      "spatial": "point",
+      "referencePoint": { "lat": 41.3083, "long": -72.9279 }
+    },
+    "test": {
+      "id": "seeclickfix-test",
+      "kind": "test",
+      "baseUrl": "https://test.seeclickfix.com/open311/v2",
+      "apiKeyEnv": "SEECLICKFIX_API_KEY",
+      "rateLimitPerMinute": 20,
+      "pageParam": "page",
+      "spatial": "point",
+      "referencePoint": { "lat": 41.3083, "long": -72.9279 }
+    }
+  }
+]
