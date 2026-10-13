@@ -133,7 +133,7 @@ Where something has not been exercised against the live service yet, this file s
 - **Used for:** "Trash Schedules by Address": collection days, and address points as a fallback
   geocoder (`apps/citydesk/src/addresses.ts`, `apps/citydesk/src/addressIndex.ts`).
 - **Worked well:** The dataset is complete (399,489 address rows), refreshed in the last two days, has
-  a data dictionary, and downloads as one CSV in about eight seconds.
+  a data dictionary, and downloads as one 35 MB CSV in 2 to 8 seconds.
 - **Needs work:** Single-address lookups through the datastore API take 2 to 5 seconds and sometimes
   time out; the exact-match filter is case-sensitive; full-text search ranks unit numbers above street
   numbers (entry 9). We ended up building a local index from the CSV (`pnpm sync:addresses`).
