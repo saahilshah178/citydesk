@@ -1,5 +1,7 @@
 # CityDesk
 
+[![CI](https://github.com/saahilshah178/citydesk/actions/workflows/ci.yml/badge.svg)](https://github.com/saahilshah178/citydesk/actions/workflows/ci.yml)
+
 **City services by voice.** "There's a huge pothole on Beacon Street by the library." CityDesk
 finds the spot, tells you a neighbor already reported it a few steps away, and follows that report for
 you instead of filing a duplicate. Days later you ask "what's happening with my requests?" and hear what
