@@ -118,13 +118,24 @@ export interface AddressSearch {
   matches: AddressRecord[];
 }
 
+/** Anything that can resolve a spoken address to Boston's address records. */
+export interface AddressDirectory {
+  /** Where answers come from, for logs. */
+  readonly source: string;
+  search(text: string): Promise<AddressSearch>;
+  /** When the city last refreshed the dataset, if known. */
+  datasetLastModified(): Promise<string | undefined>;
+}
+
 export interface AddressDirectoryOptions {
   fetch?: typeof fetch;
   userAgent?: string;
   timeoutMs?: number;
 }
 
-export class BostonAddressDirectory {
+/** Queries the open-data portal live. Correct but slow (seconds per lookup); see addressIndex.ts for the fast path. */
+export class BostonAddressDirectory implements AddressDirectory {
+  readonly source = 'data.boston.gov (live)';
   private readonly fetchImpl: typeof fetch;
   private readonly userAgent: string;
   private readonly timeoutMs: number;

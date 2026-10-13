@@ -16,7 +16,7 @@ import {
   type Service,
   type ServiceRequest,
 } from 'open311-mcp';
-import { BostonAddressDirectory } from './addresses.ts';
+import { BostonAddressDirectory, type AddressDirectory } from './addresses.ts';
 import type { IssueType, RequestSource, StaticMapInput } from './contract.ts';
 import { BOSTON_OBSERVED_SERVICES } from './data/bostonServices.ts';
 import { BostonAddressGeocoder, GeocoderChain } from './geocode/bostonAddresses.ts';
@@ -60,7 +60,7 @@ export interface RuntimeOptions {
   store?: UserStore;
   sandboxStore?: SandboxStore;
   geocoder?: Geocoder;
-  directory?: BostonAddressDirectory;
+  directory?: AddressDirectory;
   staticMap?: StaticMapProvider;
   /** Replaces the network for every Open311 and open-data call (tests). */
   fetch?: typeof fetch;
@@ -90,7 +90,7 @@ export class CityDeskRuntime {
   readonly city: CityConfig;
   readonly store: UserStore;
   readonly geocoder: Geocoder;
-  readonly directory: BostonAddressDirectory;
+  readonly directory: AddressDirectory;
   readonly sandbox: Open311Sandbox;
   readonly staticMap?: StaticMapProvider;
   readonly now: () => number;

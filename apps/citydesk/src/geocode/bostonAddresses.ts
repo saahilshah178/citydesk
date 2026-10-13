@@ -3,14 +3,14 @@
  * It cannot resolve landmarks or intersections; Amazon Location Service handles those.
  */
 import type { CityConfig } from 'open311-mcp';
-import type { BostonAddressDirectory } from '../addresses.ts';
+import type { AddressDirectory } from '../addresses.ts';
 import type { GeocodeOutcome, Geocoder, Place } from './types.ts';
 
 const PROVIDER = 'boston-address-points';
 
 export class BostonAddressGeocoder implements Geocoder {
   readonly name = PROVIDER;
-  constructor(private readonly directory: BostonAddressDirectory) {}
+  constructor(private readonly directory: AddressDirectory) {}
 
   async geocode(text: string, city: CityConfig): Promise<GeocodeOutcome> {
     if (city.id !== 'boston') return { status: 'not_found', provider: PROVIDER };
@@ -69,4 +69,29 @@ export class GeocoderChain implements Geocoder {
 export function joinOr(items: string[]): string {
   if (items.length <= 1) return items.join('');
   return `${items.slice(0, -1).join(', ')} or ${items.at(-1)}`;
+}
+
+/**
+ * Stops calling a geocoder for a while after it fails, so a missing AWS credential or an outage
+ * costs one slow request instead of slowing every request. Calls during the pause fail immediately,
+ * which lets a GeocoderChain move on to its fallback.
+ */
+export function withCooldown(geocoder: Geocoder, cooldownMs = 300_000, now: () => number = Date.now): Geocoder {
+  let failedAt: number | undefined;
+  let lastError: unknown;
+  return {
+    name: geocoder.name,
+    async geocode(text, city) {
+      if (failedAt !== undefined && now() - failedAt < cooldownMs) throw lastError;
+      try {
+        const outcome = await geocoder.geocode(text, city);
+        failedAt = undefined;
+        return outcome;
+      } catch (err) {
+        failedAt = now();
+        lastError = err;
+        throw err;
+      }
+    },
+  };
 }

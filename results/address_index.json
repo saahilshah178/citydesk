@@ -1,0 +1,51 @@
+{
+  "ranAt": "2026-10-13T07:49:45.583Z",
+  "source": "https://data.boston.gov/dataset/e9beda4e-cbf0-4527-b05c-b2349ae4ea14/resource/fee8ee07-b8b5-4ee5-b540-5162590ba5c1/download/tmpctsd39dx.csv",
+  "source_last_modified": "2026-10-11T23:58:03.032Z",
+  "source_rows": 399489,
+  "buildings_indexed": 139050,
+  "neighborhoods": 16,
+  "csv_bytes": 35090747,
+  "index_bytes_gzipped": 2292280,
+  "download_ms": 2258,
+  "index_load_ms": 632,
+  "lookups": [
+    {
+      "query": "700 Boylston Street",
+      "ms": 0.912,
+      "matches": [
+        "700 Boylston St, Boston 02116"
+      ]
+    },
+    {
+      "query": "1 City Hall Plaza",
+      "ms": 0.107,
+      "matches": [
+        "1 City Hall Plz, Boston 02108"
+      ]
+    },
+    {
+      "query": "10 Washington Street",
+      "ms": 14.872,
+      "matches": [
+        "10 Washington St, Charlestown 02129",
+        "10 Washington St, Dorchester 02121",
+        "10 Washington St, Hyde Park 02136"
+      ]
+    },
+    {
+      "query": "1079 Commonwealth Avenue",
+      "ms": 0.066,
+      "matches": [
+        "1079 Commonwealth Ave, Allston 02215"
+      ]
+    },
+    {
+      "query": "88 East Brookline Street",
+      "ms": 0.062,
+      "matches": [
+        "88 E Brookline St, Roxbury 02118"
+      ]
+    }
+  ]
+}

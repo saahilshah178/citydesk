@@ -16,11 +16,13 @@
     "smoke": "tsx scripts/smoke.ts",
     "replay:dupes": "tsx scripts/replay_dupes.ts",
     "dev:server": "pnpm --filter @citydesk/server dev",
-    "dev:client": "pnpm --filter @citydesk/sim-client dev"
+    "dev:client": "pnpm --filter @citydesk/sim-client dev",
+    "sync:addresses": "tsx scripts/sync_addresses.ts"
   },
   "devDependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1149.0",
     "@types/node": "^24.0.0",
+    "open311-mcp": "workspace:*",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.0.4"

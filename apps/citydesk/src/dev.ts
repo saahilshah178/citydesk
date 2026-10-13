@@ -20,6 +20,7 @@ const tokens = list(process.env.MCP_BEARER_TOKENS);
 const { runtime, hooks, summary } = await buildRuntime({
   env: process.env,
   memoryFile: resolve(root, '.citydesk', 'store.json'),
+  addressIndexPaths: [resolve(root, '.citydesk', 'addresses.json.gz')],
   log: (event, data) => console.error(`[citydesk] ${event}${data ? ` ${JSON.stringify(data)}` : ''}`),
 });
 
