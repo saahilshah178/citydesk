@@ -1,0 +1,65 @@
+{
+  "ranAt": "2026-10-13T06:53:01.743Z",
+  "node": "v26.5.1",
+  "passed": 4,
+  "degraded": 1,
+  "failed": 1,
+  "results": [
+    {
+      "name": "boston.services",
+      "status": "pass",
+      "detail": "6 fileable services: Street Outreach & Encampments, Other, Illegal Parking, Abandoned Vehicle, Rodent Sighting, Abandoned Bicycle",
+      "data": {
+        "count": 6
+      },
+      "ms": 303
+    },
+    {
+      "name": "boston.recent_requests",
+      "status": "pass",
+      "detail": "50 requests, newest 2026-10-13T05:54:01Z",
+      "data": {
+        "count": 50,
+        "newest": "2026-10-13T05:54:01Z"
+      },
+      "ms": 441
+    },
+    {
+      "name": "boston.test_endpoint",
+      "status": "degraded",
+      "detail": "discovery lists https://boston2-test.spotmobile.net/open311/v2 but it is unreachable: fetch failed (ENOTFOUND). Writes use the SeeClickFix sandbox instead.",
+      "unblock": "Nothing you can fix locally. Boston (or its vendor) would have to restore the test host named in its discovery file.",
+      "data": {
+        "url": "https://boston2-test.spotmobile.net/open311/v2"
+      },
+      "ms": 114
+    },
+    {
+      "name": "seeclickfix.sandbox_read",
+      "status": "pass",
+      "detail": "118 sandbox services, 20 recent sandbox requests near New Haven",
+      "data": {
+        "services": 118,
+        "requests": 20
+      },
+      "ms": 3258
+    },
+    {
+      "name": "boston.trash_schedule",
+      "status": "pass",
+      "detail": "1 City Hall Plz, 02108: trash MF, recycling MF",
+      "data": {
+        "trashday": "MF",
+        "recollect": "MF"
+      },
+      "ms": 398
+    },
+    {
+      "name": "aws.bedrock_converse",
+      "status": "fail",
+      "detail": "BEDROCK_MODEL_ID is not set",
+      "unblock": "Set BEDROCK_MODEL_ID in .env to a Bedrock model or inference profile ID your account can invoke.",
+      "ms": 0
+    }
+  ]
+}

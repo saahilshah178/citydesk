@@ -1,0 +1,53 @@
+{
+  "name": "open311-mcp",
+  "version": "0.1.0",
+  "description": "City-agnostic MCP server and typed client for Open311 GeoReport v2 (311 service requests), with sandbox-only write guards.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "open311-mcp": "dist/bin.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CONTRIBUTING.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "pnpm build && pnpm test"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "open311",
+    "georeport",
+    "311",
+    "civic-tech",
+    "seeclickfix"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.3.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.3.1",
+    "@types/node": "^24.0.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.4"
+  }
+}

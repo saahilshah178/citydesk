@@ -1,0 +1,11 @@
+packages:
+  - "packages/*"
+  - "apps/*"
+  - "infra"
+allowBuilds:
+  esbuild: true
+minimumReleaseAgeExclude:
+  - '@vitest/mocker@5.0.4'
+  - '@vitest/spy@5.0.4'
+  - vitest@5.0.4
+  - zod@4.6.7
