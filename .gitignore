@@ -12,3 +12,4 @@ cdk.context.json
 .citydesk/
 *.tsbuildinfo
 .gstack/
+.claude/
