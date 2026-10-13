@@ -199,3 +199,62 @@ describe('runScenario', () => {
     expect(report.turns[0]?.expectations[0]?.pass).toBe(true);
   });
 });
+
+describe('sessions and waits', () => {
+  it('starts a new conversation on request: history is cleared and the new connection is used', async () => {
+    const scenario = parseScenario({
+      name: 'next day',
+      turns: [
+        { user: 'There is a pothole.' },
+        { user: 'What is happening with my requests?', new_session: true, wait_seconds: 130 },
+      ],
+    });
+    const historySizes: number[] = [];
+    const toolNames: string[][] = [];
+    const converse: ConverseFn = async (request) => {
+      historySizes.push(request.messages.length);
+      toolNames.push((request.toolConfig?.tools ?? []).map((tool) => tool.toolSpec.name));
+      return say('Okay.');
+    };
+    const slept: number[] = [];
+    let reconnects = 0;
+    const report = await runScenario({
+      scenario,
+      tools: TOOLS,
+      callTool,
+      converse,
+      sleep: async (ms) => {
+        slept.push(ms);
+      },
+      onNewSession: async () => {
+        reconnects++;
+        return [{ name: 'my_requests', description: 'List.', inputSchema: { type: 'object', properties: {} } }];
+      },
+    });
+    expect(report.pass).toBe(true);
+    // The second turn starts from scratch: one user message, not the first turn's exchange plus one.
+    expect(historySizes).toEqual([1, 1]);
+    expect(reconnects).toBe(1);
+    expect(slept).toEqual([130_000]);
+    expect(toolNames[1]).toEqual(['my_requests']);
+    expect(report.turns.map((t) => [t.new_session, t.waited_seconds])).toEqual([
+      [false, 0],
+      [true, 130],
+    ]);
+  });
+
+  it('keeps history across ordinary turns', async () => {
+    const scenario = parseScenario({ name: 'two turns', turns: [{ user: 'One.' }, { user: 'Two.' }] });
+    const historySizes: number[] = [];
+    const converse: ConverseFn = async (request) => {
+      historySizes.push(request.messages.length);
+      return say('Okay.');
+    };
+    await runScenario({ scenario, tools: TOOLS, callTool, converse });
+    expect(historySizes).toEqual([1, 3]);
+  });
+
+  it('rejects a wait longer than fifteen minutes', () => {
+    expect(() => parseScenario({ name: 'x', turns: [{ user: 'hi', wait_seconds: 5000 }] })).toThrow('wait_seconds');
+  });
+});

@@ -12,7 +12,7 @@ import { IndexedAddressDirectory } from './addressIndex.ts';
 import { BostonAddressDirectory, type AddressDirectory } from './addresses.ts';
 import { cardHooks } from './cardsHook.ts';
 import { AmazonLocationGeocoder } from './geocode/amazonLocation.ts';
-import { BostonAddressGeocoder, GeocoderChain, withCooldown } from './geocode/bostonAddresses.ts';
+import { BostonAddressGeocoder, GeocoderChain, withCache, withCooldown, withDailyBudget } from './geocode/bostonAddresses.ts';
 import type { Geocoder } from './geocode/types.ts';
 import { CityDeskRuntime, type RuntimeOptions } from './runtime.ts';
 import type { CityDeskServerHooks } from './server.ts';
@@ -72,8 +72,11 @@ export async function buildRuntime(options: BootstrapOptions): Promise<Bootstrap
   const geocoders: Geocoder[] = [];
   const placeIndex = env.LOCATION_PLACE_INDEX;
   if (placeIndex) {
-    geocoders.push(withCooldown(new AmazonLocationGeocoder({ indexName: placeIndex, region })));
-    summary.push(`geocoder: Amazon Location place index ${placeIndex} in ${region}, then Boston address points`);
+    // Cached, capped per day (the cap is shared through the store), and paused for a while after a failure.
+    const perDay = positiveNumber(env.CITYDESK_MAX_GEOCODES_PER_DAY, 1000);
+    const amazon = new AmazonLocationGeocoder({ indexName: placeIndex, region });
+    geocoders.push(withCache(withCooldown(withDailyBudget(amazon, store, perDay))));
+    summary.push(`geocoder: Amazon Location place index ${placeIndex} in ${region} (at most ${perDay} requests a day), then Boston address points`);
   } else {
     summary.push('geocoder: Boston address points only (set LOCATION_PLACE_INDEX for landmarks and intersections)');
   }
@@ -100,6 +103,7 @@ export async function buildRuntime(options: BootstrapOptions): Promise<Bootstrap
       dedupeWindowDays: positiveNumber(env.CITYDESK_DEDUPE_WINDOW_DAYS, 30),
       maxFilingsPerUserPerHour: positiveNumber(env.CITYDESK_MAX_FILINGS_PER_USER_PER_HOUR, 10),
       maxFilingsPerHour: positiveNumber(env.CITYDESK_MAX_FILINGS_PER_HOUR, 200),
+      maxStaticMapsPerDay: positiveNumber(env.CITYDESK_MAX_STATIC_MAPS_PER_DAY, 2000),
     },
   });
   summary.push('cards: issue card and schedule card (MCP Apps)');

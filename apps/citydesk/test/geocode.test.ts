@@ -3,7 +3,7 @@ import { BOSTON } from 'open311-mcp';
 import { describe, expect, it } from 'vitest';
 import { parseDayCodes, parseSpokenAddress, rankAddresses, type AddressRecord } from '../src/addresses.ts';
 import { AmazonLocationGeocoder, interpretPlaces } from '../src/geocode/amazonLocation.ts';
-import { GeocoderChain } from '../src/geocode/bostonAddresses.ts';
+import { GeocodeBudgetError, GeocoderChain, withCache, withDailyBudget } from '../src/geocode/bostonAddresses.ts';
 import type { Geocoder } from '../src/geocode/types.ts';
 
 /** Builds a result in the shape SearchPlaceIndexForText returns (Esri provider). */
@@ -158,6 +158,64 @@ describe('GeocoderChain', () => {
   it('reports not_found when at least one geocoder answered, and throws only when none could', async () => {
     expect((await new GeocoderChain([broken, none]).geocode('x', BOSTON)).status).toBe('not_found');
     await expect(new GeocoderChain([broken]).geocode('x', BOSTON)).rejects.toThrow('no credentials');
+  });
+});
+
+describe('paid geocoder guards', () => {
+  const place = { status: 'ok' as const, provider: 'paid', place: { label: 'x', lat: 1, long: 2, kind: 'address' as const } };
+  function paid() {
+    const calls: string[] = [];
+    const geocoder: Geocoder = { name: 'paid', geocode: async (text) => (calls.push(text), place) };
+    return { geocoder, calls };
+  }
+  function counter() {
+    const counts = new Map<string, number>();
+    return {
+      counts,
+      increment: async (name: string) => {
+        counts.set(name, (counts.get(name) ?? 0) + 1);
+        return counts.get(name)!;
+      },
+    };
+  }
+
+  it('stops calling the paid geocoder once the day\'s allowance is used, and resumes the next day', async () => {
+    const { geocoder, calls } = paid();
+    const store = counter();
+    let t = Date.parse('2026-10-13T12:00:00Z');
+    const capped = withDailyBudget(geocoder, store, 2, () => t);
+    await capped.geocode('a', BOSTON);
+    await capped.geocode('b', BOSTON);
+    await expect(capped.geocode('c', BOSTON)).rejects.toBeInstanceOf(GeocodeBudgetError);
+    expect(calls).toEqual(['a', 'b']);
+    expect([...store.counts.keys()]).toEqual(['geocodes#paid#2026-10-13']);
+    t += 86_400_000;
+    await capped.geocode('d', BOSTON);
+    expect(calls).toEqual(['a', 'b', 'd']);
+  });
+
+  it('a chain falls back to the free geocoder when the paid one is over budget', async () => {
+    const { geocoder } = paid();
+    const free: Geocoder = { name: 'free', geocode: async () => ({ ...place, provider: 'free' }) };
+    const chain = new GeocoderChain([withDailyBudget(geocoder, counter(), 0), free]);
+    expect(await chain.geocode('a', BOSTON)).toMatchObject({ status: 'ok', provider: 'free' });
+  });
+
+  it('answers a repeated question from the cache, ignoring case and spacing', async () => {
+    const { geocoder, calls } = paid();
+    let t = 0;
+    const cached = withCache(geocoder, 2, 1000, () => t);
+    await cached.geocode('700 Boylston Street', BOSTON);
+    await cached.geocode('  700  boylston STREET ', BOSTON);
+    expect(calls).toHaveLength(1);
+    t = 2000;
+    await cached.geocode('700 Boylston Street', BOSTON);
+    expect(calls).toHaveLength(2);
+    // The cache is bounded: the oldest entry goes first.
+    await cached.geocode('b', BOSTON);
+    await cached.geocode('c', BOSTON);
+    await cached.geocode('700 Boylston Street', BOSTON);
+    expect(calls).toHaveLength(5);
   });
 });
 

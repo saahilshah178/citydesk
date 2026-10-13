@@ -245,7 +245,7 @@ describe('Lambda functions', () => {
           POLLY_VOICE_ID: 'Joanna',
           POLLY_ENGINE: 'neural',
           CITYDESK_SSM_PREFIX: '/citydesk',
-          DEMO_DAILY_REQUEST_CAP: '2000',
+          DEMO_DAILY_REQUEST_CAP: '600',
           MCP_URL: '/mcp',
           CITYDESK_TABLE: { Ref: only(template.findResources('AWS::DynamoDB::Table'))[0] },
         },

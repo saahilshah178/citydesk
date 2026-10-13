@@ -1,0 +1,171 @@
+{
+  "ranAt": "2026-10-13T08:16:00.188Z",
+  "what_this_is": "The demo conversation at the tool level, with no model involved: the script chose each tool call. It shows the server half works end to end against live data.",
+  "server": {
+    "url": "http://localhost:8787/mcp",
+    "info": {
+      "name": "citydesk",
+      "title": "CityDesk",
+      "version": "0.1.0"
+    },
+    "protocol_version": "2025-11-25"
+  },
+  "device_id": "2aa24757-a541-4cb2-9dee-26eac4be453d",
+  "places": {
+    "checkedAt": "2026-10-13T08:13:49.575Z",
+    "server": "http://localhost:8787/mcp",
+    "open_potholes_last_14_days": 122,
+    "pothole": {
+      "say": "There's a big pothole in front of 617 E Third St.",
+      "location": "617 E Third St",
+      "existing_request_id": "boston/230de6e8-323c-4e72-b8bc-59ff934edf77",
+      "distance_m": 4,
+      "reported": "2026-10-12T22:15:58.000Z",
+      "has_photo": true
+    },
+    "streetlight": {
+      "say": "The streetlight outside 1 City Hall Plaza is out.",
+      "location": "1 City Hall Plaza",
+      "resolved": "1 City Hall Plz, Boston, MA 02108"
+    },
+    "trash": {
+      "say": "When does trash go out at 700 Boylston Street?",
+      "address": "700 Boylston Street"
+    }
+  },
+  "wait_seconds_between_sessions": 130,
+  "steps": [
+    {
+      "step": "Pothole report finds an existing report",
+      "session": 1,
+      "tool": "report_issue",
+      "arguments": {
+        "issue_type": "pothole",
+        "description": "There's a big pothole in front of the building.",
+        "location": "617 E Third St"
+      },
+      "expected_outcome": "possible_duplicate",
+      "outcome": "possible_duplicate",
+      "is_error": false,
+      "spoken_summary": "Someone already reported a pothole at 617 E Third St yesterday, at the same spot, and it is still open. Do you want to follow that report instead of filing a new one?",
+      "request_ids": [
+        "boston/230de6e8-323c-4e72-b8bc-59ff934edf77"
+      ],
+      "duration_ms": 4,
+      "pass": true
+    },
+    {
+      "step": "Resident follows the existing report",
+      "session": 1,
+      "tool": "follow_request",
+      "arguments": {
+        "request_id": "boston/230de6e8-323c-4e72-b8bc-59ff934edf77"
+      },
+      "expected_outcome": "followed",
+      "outcome": "followed",
+      "is_error": false,
+      "spoken_summary": "You are now following the pothole report at 617 E Third St, which is open. Ask me about your requests any time to hear what has changed.",
+      "request_ids": [
+        "boston/230de6e8-323c-4e72-b8bc-59ff934edf77"
+      ],
+      "duration_ms": 277,
+      "pass": true
+    },
+    {
+      "step": "Streetlight report needs one answer first",
+      "session": 1,
+      "tool": "report_issue",
+      "arguments": {
+        "issue_type": "streetlight",
+        "description": "There is a problem with the streetlight.",
+        "location": "1 City Hall Plaza"
+      },
+      "expected_outcome": "needs_clarification",
+      "outcome": "needs_clarification",
+      "is_error": false,
+      "spoken_summary": "Is the light completely out, flickering, or on during the day?",
+      "request_ids": [],
+      "duration_ms": 3,
+      "pass": true
+    },
+    {
+      "step": "With the answer, the report is filed in the sandbox",
+      "session": 1,
+      "tool": "report_issue",
+      "arguments": {
+        "issue_type": "streetlight",
+        "description": "There is a problem with the streetlight.",
+        "location": "1 City Hall Plaza",
+        "details": {
+          "light_condition": "It's flickering"
+        }
+      },
+      "expected_outcome": "filed",
+      "outcome": "filed",
+      "is_error": false,
+      "spoken_summary": "Done. I filed your streetlight outage report for 1 City Hall Plz in the CityDesk sandbox, reference SB-22932. It is a test system, so nothing was sent to the city, and I will remember it when you ask about your requests.",
+      "request_ids": [
+        "citydesk-sandbox/SB-22932"
+      ],
+      "duration_ms": 5,
+      "pass": true
+    },
+    {
+      "step": "Status check in a new session",
+      "session": 2,
+      "tool": "my_requests",
+      "arguments": {},
+      "expected_outcome": "requests",
+      "outcome": "requests",
+      "is_error": false,
+      "spoken_summary": "You have 2 requests, and one has changed since you last checked. Your street light outage report at 1 City Hall Plz has an update. The latest note says: Assigned to a Street Lighting crew. (Simulated by the CityDesk sandbox.) The pothole report at 617 E Third St is still open.",
+      "request_ids": [
+        "citydesk-sandbox/SB-22932",
+        "boston/230de6e8-323c-4e72-b8bc-59ff934edf77"
+      ],
+      "duration_ms": 306,
+      "pass": true
+    },
+    {
+      "step": "Trash day for an address",
+      "session": 2,
+      "tool": "collection_schedule",
+      "arguments": {
+        "address": "700 Boylston Street"
+      },
+      "expected_outcome": "schedule",
+      "outcome": "schedule",
+      "is_error": false,
+      "spoken_summary": "At 700 Boylston St, trash and recycling are both picked up on Mondays and Thursdays. The next pickup is this Thursday, October 15th.",
+      "request_ids": [],
+      "duration_ms": 3,
+      "pass": true
+    }
+  ],
+  "checks": {
+    "all_outcomes_as_expected": true,
+    "both_requests_remembered_in_second_session": true,
+    "filed_request_is_in_sandbox": true,
+    "followed_request_is_production_data": true,
+    "sandbox_note_after_wait": "Assigned to a Street Lighting crew. (Simulated by the CityDesk sandbox.)",
+    "trash_weekdays": [
+      "Monday",
+      "Thursday"
+    ]
+  },
+  "tool_latency_ms": {
+    "min": 3,
+    "median": 5,
+    "max": 306,
+    "by_step": {
+      "1:report_issue:possible_duplicate": 4,
+      "1:follow_request:followed": 277,
+      "1:report_issue:needs_clarification": 3,
+      "1:report_issue:filed": 5,
+      "2:my_requests:requests": 306,
+      "2:collection_schedule:schedule": 3
+    }
+  },
+  "total_seconds": 131,
+  "pass": true
+}

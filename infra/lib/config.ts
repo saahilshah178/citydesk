@@ -14,7 +14,9 @@ export interface DeployConfig {
 export const DEFAULTS = {
   pollyVoiceId: 'Joanna',
   pollyEngine: 'neural',
-  demoDailyRequestCap: 2000,
+  // Metered requests (assistant turns and speech) per UTC day across all visitors. About 30 full
+  // demo conversations; raise it with DEMO_DAILY_REQUEST_CAP if the demo gets busy.
+  demoDailyRequestCap: 600,
   tableName: 'citydesk-user-requests',
   placeIndexName: 'citydesk-places',
 } as const;

@@ -1,0 +1,60 @@
+{
+  "name": "CityDesk demo conversation",
+  "description": "Generated 2026-10-13T08:13:14.453Z against http://localhost:8787/mcp. The pothole turn uses 617 E Third St, where Boston listed an open pothole request (boston/230de6e8-323c-4e72-b8bc-59ff934edf77, reported 2026-10-12T22:15:58.000Z) when this file was written.",
+  "turns": [
+    {
+      "user": "There's a big pothole in front of 617 East Third Street.",
+      "note": "A real open pothole report exists here, so nothing should be filed.",
+      "expect": {
+        "tool": "report_issue",
+        "outcome": "possible_duplicate",
+        "reply_excludes": [
+          "230de6e8-323c"
+        ]
+      }
+    },
+    {
+      "user": "Yes, follow that one instead.",
+      "expect": {
+        "tool": "follow_request",
+        "outcome": "followed"
+      }
+    },
+    {
+      "user": "There's also a problem with the streetlight outside 1 City Hall Plaza.",
+      "note": "The sandbox service definition has one required question, so the assistant must ask it.",
+      "expect": {
+        "tool": "report_issue",
+        "outcome": "needs_clarification"
+      }
+    },
+    {
+      "user": "It's flickering.",
+      "note": "With the answer, the report is filed in the sandbox.",
+      "expect": {
+        "tool": "report_issue",
+        "outcome": "filed"
+      }
+    },
+    {
+      "user": "What's happening with my requests?",
+      "note": "\"The next day\": a new session from the same device. The wait lets the sandbox request move to \"assigned\".",
+      "new_session": true,
+      "wait_seconds": 130,
+      "expect": {
+        "tool": "my_requests",
+        "outcome": "requests"
+      }
+    },
+    {
+      "user": "When does the trash go out at 700 Boylston Street?",
+      "expect": {
+        "tool": "collection_schedule",
+        "outcome": "schedule",
+        "reply_includes": [
+          "Monday"
+        ]
+      }
+    }
+  ]
+}

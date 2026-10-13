@@ -32,22 +32,21 @@ tier (25 RCU / 25 WCU).
 ## Services
 
 "Region" is the Region the stack is deployed to: `AWS_REGION`, default `us-east-1`. The "Called
-from" column is for the application file that makes the call. It is filled in once the app code
-lands.
+from" column names the application file that makes the call.
 
 | Service | Region | Why it is used | IAM actions granted, and to which function | Defined in | Called from |
 | --- | --- | --- | --- | --- | --- |
-| **AWS Lambda**: MCP server function | deploy Region | Runs the MCP server (Streamable HTTP) behind a public Function URL. Node.js 24, arm64, 512 MB, 20 s. | Resource policy on the function: `lambda:InvokeFunctionUrl` (auth type `NONE`) and `lambda:InvokeFunction` (only via the Function URL) for principal `*`. | `infra/lib/citydesk-stack.ts` (`nodeFunction('Mcp', …)`, `addFunctionUrl`) | TODO(app): handler `apps/citydesk/src/lambda.ts` |
-| **AWS Lambda**: client API function | deploy Region | Backend of the web client: one assistant turn through Bedrock, speech through Polly. Node.js 24, arm64, 512 MB, 30 s. Public Function URL. | Same two resource-policy statements as above, on this function. | `infra/lib/citydesk-stack.ts` (`nodeFunction('ClientApi', …)`, `addFunctionUrl`) | TODO(app): handler `apps/sim-client/server/lambda.ts` |
-| **Amazon DynamoDB** | deploy Region | Table `citydesk-user-requests` (`pk`, `sk`, TTL on `ttl`): each user's filed and followed requests. Provisioned 5 RCU / 5 WCU. | **MCP function:** `dynamodb:BatchGetItem`, `BatchWriteItem`, `ConditionCheckItem`, `DeleteItem`, `GetItem`, `PutItem`, `Query`, `Scan`, `UpdateItem` on the table ARN. | `infra/lib/citydesk-stack.ts` (`UserRequests`) | TODO(app) |
-| **Amazon Location Service**: Places (place index) | deploy Region | Place index `citydesk-places` (Esri, intended use `Storage`): geocodes spoken addresses and landmarks with `SearchPlaceIndexForText`. | **MCP function:** `geo:SearchPlaceIndexForText` on `arn:aws:geo:<region>:<account>:place-index/citydesk-places`. | `infra/lib/citydesk-stack.ts` (`Places`) | TODO(app) |
-| **Amazon Location Service**: Maps | deploy Region | Static map image for the issue card, through the newer Maps API (`GetStaticMap`). It needs no resource in the stack. | **MCP function:** `geo-maps:GetStaticMap` on `arn:aws:geo-maps:<region>::provider/default`. | `infra/lib/citydesk-stack.ts` (statement `StaticMaps`) | TODO(app) |
-| **Amazon Bedrock** | deploy Region for the call. An inference profile may run the request in other Regions. | The assistant model, through the Converse API with tool use. Model chosen by `BEDROCK_MODEL_ID` at synth time. | **Client API function:** `bedrock:InvokeModel`, scoped to the configured model. See [Bedrock permissions](#bedrock-permissions). | `infra/lib/bedrock.ts`, applied in `infra/lib/citydesk-stack.ts` | TODO(app) |
-| **Amazon Polly** | deploy Region | Speaks the assistant's replies (`POLLY_VOICE_ID`, default `Joanna`; `POLLY_ENGINE`, default `neural`). | **Client API function:** `polly:SynthesizeSpeech` on `*` (the action only supports resource-level scoping for custom lexicons, which are not used). | `infra/lib/citydesk-stack.ts` (statement `SynthesizeSpeech`) | TODO(app) |
-| **Amazon S3** | deploy Region | Private bucket holding the built web client (`apps/sim-client/dist`). Block Public Access on, TLS enforced, emptied and deleted with the stack. | Neither application function. The bucket policy lets `cloudfront.amazonaws.com` call `s3:GetObject` for this distribution only. CDK's deploy-time helper functions get the access they need (see [CDK helpers](#cdk-helper-resources)). | `infra/lib/citydesk-stack.ts` (`ClientBucket`, `DeployClient`) | Not called by the app. `TODO(app)`: confirm |
-| **Amazon CloudFront** | Global | One distribution, cheapest price class. Serves the client and forwards `/api/*` and `/mcp` to the Function URLs so the browser stays same-origin. | None. | `infra/lib/citydesk-stack.ts` (`Distribution`) | Not called by the app. `TODO(app)`: the client's fetch paths |
-| **AWS Systems Manager Parameter Store** | deploy Region | `/citydesk/mcp-bearer-token`, `/citydesk/boston-open311-api-key`, `/citydesk/seeclickfix-api-key` (SecureString) and `/citydesk/allowed-origins` (String). | **Both functions:** `ssm:GetParameter`, `ssm:GetParameters` on `arn:aws:ssm:<region>:<account>:parameter/citydesk/*`. | String parameter: `infra/lib/citydesk-stack.ts` (`AllowedOrigins`). SecureStrings: `infra/scripts/ensure-params.ts`, `infra/lib/ensure-params.ts`. Names: `infra/lib/params.ts` | TODO(app) |
-| **AWS KMS** (AWS managed key `alias/aws/ssm`) | deploy Region | Encrypts the SecureString parameters. No key is created. | **Both functions:** `kms:Decrypt` on `arn:aws:kms:<region>:<account>:key/*`, only when `kms:ViaService` is `ssm.<region>.amazonaws.com` and the encryption context `PARAMETER_ARN` is under `/citydesk/`. | `infra/lib/citydesk-stack.ts` (`parameterReadStatements`) | Indirect, through `GetParameter` with decryption. TODO(app) |
+| **AWS Lambda**: MCP server function | deploy Region | Runs the MCP server (Streamable HTTP) behind a public Function URL. Node.js 24, arm64, 512 MB, 20 s. | Resource policy on the function: `lambda:InvokeFunctionUrl` (auth type `NONE`) and `lambda:InvokeFunction` (only via the Function URL) for principal `*`. | `infra/lib/citydesk-stack.ts` (`nodeFunction('Mcp', …)`, `addFunctionUrl`) | Handler `apps/citydesk/src/lambda.ts`, through `toFunctionUrlHandler` in `packages/open311-mcp/src/adapters.ts` |
+| **AWS Lambda**: client API function | deploy Region | Backend of the web client: one assistant turn through Bedrock, speech through Polly. Node.js 24, arm64, 512 MB, 30 s. Public Function URL. | Same two resource-policy statements as above, on this function. | `infra/lib/citydesk-stack.ts` (`nodeFunction('ClientApi', …)`, `addFunctionUrl`) | Handler `apps/sim-client/server/lambda.ts` |
+| **Amazon DynamoDB** | deploy Region | Table `citydesk-user-requests` (`pk`, `sk`, TTL on `ttl`): each user's filed and followed requests. Provisioned 5 RCU / 5 WCU. | **MCP function:** `dynamodb:BatchGetItem`, `BatchWriteItem`, `ConditionCheckItem`, `DeleteItem`, `GetItem`, `PutItem`, `Query`, `Scan`, `UpdateItem` on the table ARN. **Client API function:** `dynamodb:UpdateItem` on the table, only for items whose partition key is `COUNTER` (`dynamodb:LeadingKeys` condition). | `infra/lib/citydesk-stack.ts` (`UserRequests`) | `apps/citydesk/src/store/dynamo.ts` (`GetCommand`, `PutCommand`, `QueryCommand`, `UpdateCommand`): tracked requests, home address, sandbox requests, hourly filing counters. `apps/sim-client/server/aws.ts` (`SharedDayCounter`, `UpdateItemCommand`): the daily request cap |
+| **Amazon Location Service**: Places (place index) | deploy Region | Place index `citydesk-places` (Esri, intended use `Storage`): geocodes spoken addresses and landmarks with `SearchPlaceIndexForText`. | **MCP function:** `geo:SearchPlaceIndexForText` on `arn:aws:geo:<region>:<account>:place-index/citydesk-places`. | `infra/lib/citydesk-stack.ts` (`Places`) | `apps/citydesk/src/geocode/amazonLocation.ts` (`SearchPlaceIndexForTextCommand` with `FilterBBox`), wired in `apps/citydesk/src/bootstrap.ts`, used by `report_issue` and `find_nearby_reports` in `apps/citydesk/src/tools.ts` |
+| **Amazon Location Service**: Maps | deploy Region | Static map image for the issue card, through the newer Maps API (`GetStaticMap`). It needs no resource in the stack. | **MCP function:** `geo-maps:GetStaticMap` on `arn:aws:geo-maps:<region>::provider/default`. | `infra/lib/citydesk-stack.ts` (statement `StaticMaps`) | `apps/citydesk/src/aws/staticMap.ts` (`GetStaticMapCommand`), served to the cards by the `static_map` tool in `apps/citydesk/src/staticMapTool.ts` |
+| **Amazon Bedrock** | deploy Region for the call. An inference profile may run the request in other Regions. | The assistant model, through the Converse API with tool use. Model chosen by `BEDROCK_MODEL_ID` at synth time. | **Client API function:** `bedrock:InvokeModel`, scoped to the configured model. See [Bedrock permissions](#bedrock-permissions). | `infra/lib/bedrock.ts`, applied in `infra/lib/citydesk-stack.ts` | `apps/sim-client/server/bedrock.ts` (`ConverseCommand` with `toolConfig`), behind `POST /api/converse` in `apps/sim-client/server/app.ts`. Also called directly by `apps/sim-client/scripts/conversation.ts` and `scripts/smoke.ts` |
+| **Amazon Polly** | deploy Region | Speaks the assistant's replies (`POLLY_VOICE_ID`, default `Joanna`; `POLLY_ENGINE`, default `neural`). | **Client API function:** `polly:SynthesizeSpeech` on `*` (the action only supports resource-level scoping for custom lexicons, which are not used). | `infra/lib/citydesk-stack.ts` (statement `SynthesizeSpeech`) | `apps/sim-client/server/app.ts` (`SynthesizeSpeechCommand`, `POST /api/speak`), played by `apps/sim-client/src/voice/speech.ts` |
+| **Amazon S3** | deploy Region | Private bucket holding the built web client (`apps/sim-client/dist`). Block Public Access on, TLS enforced, emptied and deleted with the stack. | Neither application function. The bucket policy lets `cloudfront.amazonaws.com` call `s3:GetObject` for this distribution only. CDK's deploy-time helper functions get the access they need (see [CDK helpers](#cdk-helper-resources)). | `infra/lib/citydesk-stack.ts` (`ClientBucket`, `DeployClient`) | Not called by the app. `make deploy` uploads `apps/sim-client/dist` |
+| **Amazon CloudFront** | Global | One distribution, cheapest price class. Serves the client and forwards `/api/*` and `/mcp` to the Function URLs so the browser stays same-origin. | None. | `infra/lib/citydesk-stack.ts` (`Distribution`) | Not called by the app. The browser calls `/api/config`, `/api/converse`, `/api/speak` (`apps/sim-client/src/api.ts`) and `/mcp` (`apps/sim-client/src/mcp/session.ts`) on the distribution's own origin |
+| **AWS Systems Manager Parameter Store** | deploy Region | `/citydesk/mcp-bearer-token`, `/citydesk/boston-open311-api-key`, `/citydesk/seeclickfix-api-key` (SecureString) and `/citydesk/allowed-origins` (String). | **Both functions:** `ssm:GetParameter`, `ssm:GetParameters` on `arn:aws:ssm:<region>:<account>:parameter/citydesk/*`. | String parameter: `infra/lib/citydesk-stack.ts` (`AllowedOrigins`). SecureStrings: `infra/scripts/ensure-params.ts`, `infra/lib/ensure-params.ts`. Names: `infra/lib/params.ts` | `apps/citydesk/src/aws/parameters.ts` (`GetParametersCommand` with decryption), used in `apps/citydesk/src/lambda.ts` for the bearer token, allowed origins and API keys. `apps/sim-client/server/aws.ts` (`ssmConfigSource`) for the token the browser presents |
+| **AWS KMS** (AWS managed key `alias/aws/ssm`) | deploy Region | Encrypts the SecureString parameters. No key is created. | **Both functions:** `kms:Decrypt` on `arn:aws:kms:<region>:<account>:key/*`, only when `kms:ViaService` is `ssm.<region>.amazonaws.com` and the encryption context `PARAMETER_ARN` is under `/citydesk/`. | `infra/lib/citydesk-stack.ts` (`parameterReadStatements`) | Indirect, through `GetParameters` with decryption |
 | **Amazon CloudWatch Logs** | deploy Region | One log group per function, kept two weeks, deleted with the stack. | **Each function, on its own log group only:** `logs:CreateLogStream`, `logs:PutLogEvents`. The roles do not use the `AWSLambdaBasicExecutionRole` managed policy. | `infra/lib/citydesk-stack.ts` (`nodeFunction`) | Implicit (stdout of each function) |
 | **AWS IAM** | Global | One execution role per function, holding only the statements in this table. | n/a | `infra/lib/citydesk-stack.ts` (`nodeFunction`) | n/a |
 | **AWS CloudFormation** and the CDK bootstrap stack | deploy Region | Deploys the stack. `cdk bootstrap` creates the `CDKToolkit` stack: an S3 bucket for assets, an empty ECR repository, deploy roles and one SSM parameter. | None for the application functions. | `infra/bin/citydesk.ts`, `infra/cdk.json`, `infra/scripts/bootstrap.ts` | n/a |
@@ -128,8 +127,13 @@ the `x-amz-content-sha256` header"
 ([CloudFront: restrict access to a Lambda function URL origin](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-lambda.html)).
 MCP is JSON-RPC over POST, and standard MCP clients do not send that header. The consequence: both
 Function URLs can be called directly by anyone who has the URL, and the application is the only
-thing that says no. The stack hands `DEMO_DAILY_REQUEST_CAP` to the client API function; enforcing
-it is the app's job (TODO(app): where).
+thing that says no. The stack hands `DEMO_DAILY_REQUEST_CAP` to the client API function, which
+enforces it in `apps/sim-client/server/limits.ts`: every `/api/converse` and `/api/speak` request
+adds one to a counter in DynamoDB (`apps/sim-client/server/aws.ts`, shared by all warm instances),
+and requests past the cap are refused before any Bedrock or Polly call. A per-address limit of 40
+requests a minute sits in front of it. The MCP function has its own ceilings: 10 new reports per
+household and 200 overall per hour (`apps/citydesk/src/tools.ts`), and a per-minute budget for calls
+to Boston.
 
 **Function URL permissions.** Since October 2025 a Function URL needs both `lambda:InvokeFunctionUrl`
 and `lambda:InvokeFunction` in the function's resource policy, even with auth type `NONE`, and
@@ -194,7 +198,7 @@ exported win).
 | `BEDROCK_MODEL_ID` | synth, deploy | none: synth fails with a readable message |
 | AWS credentials (`AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY`, or `AWS_PROFILE`, or SSO) | deploy, destroy | none |
 | `AWS_REGION` | all | `us-east-1` |
-| `POLLY_VOICE_ID`, `POLLY_ENGINE`, `DEMO_DAILY_REQUEST_CAP` | deploy | `Joanna`, `neural`, `2000` |
+| `POLLY_VOICE_ID`, `POLLY_ENGINE`, `DEMO_DAILY_REQUEST_CAP` | deploy | `Joanna`, `neural`, `600` |
 | `CITYDESK_TABLE`, `LOCATION_PLACE_INDEX` | deploy | `citydesk-user-requests`, `citydesk-places` |
 | `BOSTON_OPEN311_API_KEY`, `SEECLICKFIX_API_KEY` | deploy, optional | not stored when unset |
 
@@ -329,12 +333,21 @@ tier. A larger Bedrock model is the one number that can move this a lot.
 **Idle cost: USD 0**, as long as the table's 5/5 capacity fits in the account's DynamoDB free tier
 (otherwise about USD 2.85 a month). Nothing else in the stack charges while unused, apart from cents of S3 storage.
 
-**Worst case.** `DEMO_DAILY_REQUEST_CAP` defaults to 2,000 requests a day. How the app counts a
-request against it is not known here (TODO(app)). If every one were a full spoken assistant turn, a month at the cap would
-be 20 times the volume above: on the order of USD 240 for neural Polly, USD 26 for Nova Lite, and
-Location in proportion to the number of conversations. Lambda would still be inside the free tier.
-If that is too much exposure for a public demo URL, lower the cap, use `POLLY_ENGINE=standard`, and
-set an AWS Budgets alert on the account.
+**Worst case.** The public endpoints have ceilings so that a stranger with the demo token cannot
+run up a bill:
+
+- `DEMO_DAILY_REQUEST_CAP` defaults to 600 metered requests a day. Each `/api/converse` call and each
+  `/api/speak` call counts as one, so a spoken assistant turn uses about three. A month at the cap is
+  about 6,000 turns, twice the volume assumed above: on the order of USD 24 for neural Polly and
+  USD 3 for Nova Lite.
+- `CITYDESK_MAX_GEOCODES_PER_DAY` defaults to 1,000 Amazon Location geocodes a day (USD 4 a day at the
+  stored-result price if it were hit every day). Past it, street addresses still resolve from the
+  bundled Boston address index; landmarks and intersections do not until the next day.
+- `CITYDESK_MAX_STATIC_MAPS_PER_DAY` defaults to 2,000 map images a day (USD 1 a day past the free
+  tier).
+
+Lambda would still be inside the free tier. To tighten further, lower the caps, use
+`POLLY_ENGINE=standard`, and set an AWS Budgets alert on the account.
 
 **CloudFront flat-rate plans.** The CloudFront pricing page now leads with flat-rate plans, including
 a USD 0 "Free" plan (1M requests, 100 GB). The distribution in this stack is plain pay as you go; no

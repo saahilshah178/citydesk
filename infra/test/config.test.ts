@@ -15,11 +15,11 @@ describe('loadDeployConfig', () => {
       bedrockModelId: 'us.amazon.nova-lite-v1:0',
       pollyVoiceId: 'Joanna',
       pollyEngine: 'neural',
-      demoDailyRequestCap: 2000,
+      demoDailyRequestCap: 600,
       tableName: 'citydesk-user-requests',
       placeIndexName: 'citydesk-places',
     });
-    expect(DEFAULTS.demoDailyRequestCap).toBe(2000);
+    expect(DEFAULTS.demoDailyRequestCap).toBe(600);
   });
 
   it('takes overrides from the environment and treats blank values as unset', () => {

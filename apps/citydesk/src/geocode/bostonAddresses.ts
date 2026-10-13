@@ -95,3 +95,49 @@ export function withCooldown(geocoder: Geocoder, cooldownMs = 300_000, now: () =
     },
   };
 }
+
+/** Thrown when a paid geocoder has used up its daily allowance. A GeocoderChain moves on to its fallback. */
+export class GeocodeBudgetError extends Error {
+  constructor(limit: number) {
+    super(`The daily allowance of ${limit} geocoding requests is used up.`);
+    this.name = 'GeocodeBudgetError';
+  }
+}
+
+/**
+ * Caps how many times a day a paid geocoder is called, counted in the shared store so the cap holds
+ * across Lambda instances. A public demo token must not be able to run up a geocoding bill.
+ */
+export function withDailyBudget(
+  geocoder: Geocoder,
+  counter: { increment(name: string, ttlSeconds: number): Promise<number> },
+  limitPerDay: number,
+  now: () => number = Date.now,
+): Geocoder {
+  return {
+    name: geocoder.name,
+    async geocode(text, city) {
+      const day = new Date(now()).toISOString().slice(0, 10);
+      const used = await counter.increment(`geocodes#${geocoder.name}#${day}`, 2 * 86_400);
+      if (used > limitPerDay) throw new GeocodeBudgetError(limitPerDay);
+      return geocoder.geocode(text, city);
+    },
+  };
+}
+
+/** Remembers recent answers, so asking about the same place twice costs one request. */
+export function withCache(geocoder: Geocoder, maxEntries = 500, ttlMs = 6 * 3_600_000, now: () => number = Date.now): Geocoder {
+  const cache = new Map<string, { at: number; outcome: Awaited<ReturnType<Geocoder['geocode']>> }>();
+  return {
+    name: geocoder.name,
+    async geocode(text, city) {
+      const key = `${city.id}|${text.trim().toLowerCase().replace(/\s+/g, ' ')}`;
+      const hit = cache.get(key);
+      if (hit && now() - hit.at < ttlMs) return hit.outcome;
+      const outcome = await geocoder.geocode(text, city);
+      if (cache.size >= maxEntries) cache.delete(cache.keys().next().value!);
+      cache.set(key, { at: now(), outcome });
+      return outcome;
+    },
+  };
+}

@@ -36,6 +36,8 @@ export interface CityDeskConfig {
   maxFilingsPerUserPerHour: number;
   /** Most reports all households together may file per hour: a ceiling on abuse of a public demo. */
   maxFilingsPerHour: number;
+  /** Most map images drawn per day. */
+  maxStaticMapsPerDay: number;
 }
 
 export const DEFAULT_CONFIG: CityDeskConfig = {
@@ -44,6 +46,7 @@ export const DEFAULT_CONFIG: CityDeskConfig = {
   sandboxLifecycle: { assignAfterMs: 2 * 60_000, closeAfterMs: 20 * 3_600_000 },
   maxFilingsPerUserPerHour: 10,
   maxFilingsPerHour: 200,
+  maxStaticMapsPerDay: 2000,
 };
 
 /** One Open311 endpoint as the tools see it. */

@@ -18,7 +18,11 @@
     "dev:server": "pnpm --filter @citydesk/server dev",
     "dev:client": "pnpm --filter @citydesk/sim-client dev",
     "sync:addresses": "tsx scripts/sync_addresses.ts",
-    "demo:places": "tsx scripts/find_demo_places.ts"
+    "demo:places": "tsx scripts/find_demo_places.ts",
+    "demo:scenario": "tsx scripts/make_scenario.ts",
+    "demo:conversation": "tsx scripts/make_scenario.ts && pnpm --filter @citydesk/sim-client conversation --scenario results/conversation.scenario.json --out results/conversation.json",
+    "check:bundles": "node scripts/check_bundles.mjs",
+    "demo:tools": "tsx scripts/run_tools_only.ts"
   },
   "devDependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1149.0",

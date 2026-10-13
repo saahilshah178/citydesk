@@ -31,6 +31,14 @@ const scenarioSchema = z.strictObject({
         user: z.string().trim().min(1),
         /** Free text for humans reading the file; the runner ignores it. */
         note: z.string().optional(),
+        /**
+         * Start this turn as a new conversation: the assistant's history is cleared and the MCP
+         * client reconnects, as when the resident comes back another day. The device stays the same,
+         * so anything the server remembers about the household is still there.
+         */
+        new_session: z.literal(true).optional(),
+        /** Wait this long before the turn (for example, to let a sandbox request change status). */
+        wait_seconds: z.number().min(0).max(900).optional(),
         expect: expectSchema.optional(),
       }),
     )

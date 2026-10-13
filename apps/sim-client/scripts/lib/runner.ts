@@ -21,6 +21,10 @@ export interface ToolCallReport {
 export interface TurnReport {
   index: number;
   user: string;
+  /** True when the turn began a new conversation (history cleared, MCP client reconnected). */
+  new_session: boolean;
+  /** Seconds the runner waited before the turn, as the scenario asked. */
+  waited_seconds: number;
   /** What the resident would hear: the guarded reply. `null` when the turn failed. */
   reply: string | null;
   /** The model's text before the two-sentence guard. */
@@ -68,6 +72,12 @@ export interface RunScenarioOptions {
   maxToolRounds?: number;
   structuredFormat?: StructuredFormat;
   now?: () => number;
+  sleep?: (ms: number) => Promise<void>;
+  /**
+   * Called when a turn asks for a new session, before the turn runs. Returns the tools of the new
+   * connection when it reconnected, so the turn uses what a fresh client would see.
+   */
+  onNewSession?: () => Promise<readonly McpToolLike[] | void>;
   /** Called as each turn finishes, so the CLI can print the transcript as it happens. */
   onTurn?: (turn: TurnReport) => void;
 }
@@ -88,6 +98,8 @@ function emptyTurn(index: number, user: string, ending: 'failed' | 'skipped', er
   return {
     index,
     user,
+    new_session: false,
+    waited_seconds: 0,
     reply: null,
     raw_reply: null,
     ending,
@@ -107,8 +119,10 @@ function emptyTurn(index: number, user: string, ending: 'failed' | 'skipped', er
 }
 
 export async function runScenario(options: RunScenarioOptions): Promise<ScenarioReport> {
-  const { scenario, converse, callTool, tools, onTurn } = options;
+  const { scenario, converse, callTool, onTurn } = options;
+  let tools = options.tools;
   const now = options.now ?? Date.now;
+  const sleep = options.sleep ?? ((ms: number) => new Promise<void>((done) => setTimeout(done, ms)));
   const started = now();
   const turns: TurnReport[] = [];
   let history: Message[] = [];
@@ -124,9 +138,18 @@ export async function runScenario(options: RunScenarioOptions): Promise<Scenario
       continue;
     }
 
-    const turnStarted = now();
+    const waitedSeconds = turn.wait_seconds ?? 0;
+    const newSession = turn.new_session === true;
     let report: TurnReport;
+    let turnStarted = now();
     try {
+      if (waitedSeconds > 0) await sleep(waitedSeconds * 1000);
+      if (newSession) {
+        history = [];
+        tools = (await options.onNewSession?.()) ?? tools;
+      }
+      // The wait and the reconnect are setup, not part of the turn's response time.
+      turnStarted = now();
       const result = await runAssistantTurn({
         converse,
         callTool,
@@ -141,6 +164,8 @@ export async function runScenario(options: RunScenarioOptions): Promise<Scenario
       report = {
         index,
         user: turn.user,
+        new_session: newSession,
+        waited_seconds: waitedSeconds,
         reply: result.reply,
         raw_reply: result.rawReply,
         ending: result.ending,
@@ -166,6 +191,8 @@ export async function runScenario(options: RunScenarioOptions): Promise<Scenario
     } catch (error) {
       broken = true;
       report = emptyTurn(index, turn.user, 'failed', error instanceof Error ? `${error.name}: ${error.message}` : String(error));
+      report.new_session = newSession;
+      report.waited_seconds = waitedSeconds;
       report.timings_ms.total = now() - turnStarted;
     }
     turns.push(report);

@@ -42,7 +42,10 @@ AWS credentials come from the usual SDK chain (environment, shared config, SSO).
 class SetupError extends Error {}
 
 function describe(turn: TurnReport): string {
-  const lines = [`\n[${turn.index}] Resident: ${turn.user}`];
+  const lines: string[] = [];
+  if (turn.waited_seconds > 0) lines.push(`\n    (waited ${turn.waited_seconds} s)`);
+  if (turn.new_session) lines.push('\n    --- new session: history cleared, MCP client reconnected, same device ---');
+  lines.push(`\n[${turn.index}] Resident: ${turn.user}`);
   for (const call of turn.tool_calls) {
     const verdict = call.error ?? call.outcome ?? (call.is_error ? 'error' : 'ok');
     lines.push(`    tool  ${call.name} ${JSON.stringify(call.arguments)} -> ${verdict} (${call.duration_ms} ms)`);
@@ -117,6 +120,7 @@ async function main(): Promise<number> {
   }
 
   let session: McpSession;
+  let sessionsOpened = 1;
   try {
     session = await McpSession.connect({ url: mcpUrl, token, deviceId });
   } catch (error) {
@@ -147,6 +151,13 @@ async function main(): Promise<number> {
       callTool: (name, args, options) => session.callTool(name, args, { origin: 'assistant', signal: options?.signal }),
       structuredFormat,
       ...(maxToolRounds === undefined ? {} : { maxToolRounds }),
+      // "The next day": a brand new MCP connection (initialize, tools/list) from the same device.
+      onNewSession: async () => {
+        await session.close().catch(() => undefined);
+        session = await McpSession.connect({ url: mcpUrl, token, deviceId });
+        sessionsOpened++;
+        return session.tools;
+      },
       onTurn: (turn) => console.log(describe(turn)),
     });
 
@@ -169,6 +180,7 @@ async function main(): Promise<number> {
           model_tools: visible,
           hidden_tools: hidden,
           device_id: deviceId,
+          mcp_sessions_opened: sessionsOpened,
           model_id: modelId,
           region,
           max_tokens: config.maxTokens,
