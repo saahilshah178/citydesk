@@ -1,0 +1,211 @@
+/* Schedule card. See shared/base.css for the sizing model (rem = 16px at the 768x480 base). */
+
+.place {
+  flex: none;
+  margin-bottom: 0.875rem;
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- the two big facts ---------- */
+
+.facts {
+  flex: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 1rem;
+}
+
+.fact {
+  min-width: 0;
+  height: 11.25rem;
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.fact-kind {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.fact-kind .icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--text);
+}
+
+.fact-big {
+  margin-top: 0.5rem;
+  font-size: 3.25rem;
+  line-height: 3.5rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fact--today .fact-big {
+  color: var(--accent);
+}
+
+.fact-sub {
+  margin-top: 0.125rem;
+  font-size: 1.25rem;
+  line-height: 1.625rem;
+  font-weight: 500;
+}
+
+.fact-rule {
+  margin-top: 0.375rem;
+  font-size: 0.9375rem;
+  line-height: 1.25rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fact--none .fact-big {
+  color: var(--muted);
+}
+
+.fact--none .fact-sub {
+  font-size: 1.0625rem;
+  line-height: 1.4375rem;
+  color: var(--muted);
+}
+
+/* ---------- 14-day strip ---------- */
+
+.strip {
+  flex: none;
+  margin-top: 0.875rem;
+}
+
+.strip-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 1.5rem;
+  margin-bottom: 0.4375rem;
+}
+
+.strip-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.legend {
+  display: flex;
+  gap: 1.125rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+}
+
+.days {
+  display: grid;
+  grid-template-columns: repeat(14, minmax(0, 1fr));
+  column-gap: 0.375rem;
+}
+
+.day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 4.75rem;
+  padding: 0.4375rem 0 0;
+  border-radius: 0.625rem;
+  border: 0.125rem solid transparent;
+  color: var(--muted);
+}
+
+.day--pickup {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.day--today {
+  border-color: var(--text);
+  color: var(--text);
+}
+
+.day-name {
+  font-size: 0.6875rem;
+  line-height: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* "TODAY" is the widest label in the strip: no tracking, so it clears the cell's outline. */
+.day--today .day-name {
+  letter-spacing: 0;
+}
+
+.day-date {
+  margin-top: 0.125rem;
+  font-size: 1.25rem;
+  line-height: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.day:not(.day--pickup) .day-date {
+  font-weight: 500;
+}
+
+.day-marks {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.375rem;
+  height: 0.75rem;
+}
+
+/* One accent colour, two shapes: a solid dot for trash and a ring for recycling. */
+.mark {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  border: 0.1875rem solid var(--accent);
+  flex: none;
+}
+
+.mark--trash {
+  background: var(--accent);
+}
+
+.source {
+  margin-top: auto;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

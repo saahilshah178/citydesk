@@ -1,0 +1,687 @@
+/* Issue card. See shared/base.css for the sizing model (rem = 16px at the 768x480 base). */
+
+/* ---------- one request: map on the left, details on the right ---------- */
+
+.detail {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 19rem minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  column-gap: 1.75rem;
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.title {
+  font-size: 2.125rem;
+  line-height: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  flex: none;
+}
+
+.address {
+  margin-top: 0.25rem;
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  flex: none;
+}
+
+/* One line high and wrapping: an item that does not fit drops to a second line that is clipped,
+   so the row never shows half a label. */
+.status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  height: 1.875rem;
+  margin-top: 0.875rem;
+  overflow: hidden;
+  flex: none;
+}
+
+.status-row > * {
+  height: 1.875rem;
+  line-height: 1.875rem;
+}
+
+.status-row > .status,
+.status-row > .tag {
+  line-height: 1;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  height: 1.875rem;
+  padding: 0 0.875rem 0 0.6875rem;
+  border-radius: 0.9375rem;
+  font-size: 1rem;
+  font-weight: 700;
+  flex: none;
+}
+
+.status--open {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.status--closed {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.status-dot {
+  width: 0.5625rem;
+  height: 0.5625rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.status-icon {
+  width: 1rem;
+  height: 1rem;
+  stroke-width: 3;
+}
+
+.meta {
+  font-size: 0.9375rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.notes {
+  margin-top: 0.75rem;
+  font-size: 0.9375rem;
+  line-height: 1.3125rem;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  flex: none;
+}
+
+/* ---------- timeline ---------- */
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  margin-top: 0.875rem;
+  flex: none;
+}
+
+.step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.125rem minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0.75rem;
+  min-height: 2.125rem;
+}
+
+.step-dot {
+  position: relative;
+  z-index: 1;
+  width: 0.875rem;
+  height: 0.875rem;
+  justify-self: center;
+  border-radius: 50%;
+  border: 0.125rem solid var(--line);
+  background: var(--bg);
+}
+
+/* The connector runs from the previous dot down to this one. */
+.step::before {
+  content: '';
+  position: absolute;
+  left: 0.5rem;
+  top: -50%;
+  width: 0.125rem;
+  height: 100%;
+  background: var(--line);
+}
+
+.step:first-child::before {
+  display: none;
+}
+
+.step--done .step-dot {
+  border-color: var(--text);
+  background: var(--text);
+}
+
+.step--current .step-dot {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: 0 0 0 0.25rem var(--accent-soft);
+}
+
+.step--done::before,
+.step--current::before {
+  background: var(--text);
+}
+
+.step-label {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.step--current .step-label {
+  font-weight: 700;
+}
+
+.step--pending .step-label {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.step-time {
+  font-size: 0.875rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---------- request ID ---------- */
+
+.idblock {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: auto;
+  padding-top: 0.625rem;
+  border-top: 1px solid var(--line);
+  flex: none;
+}
+
+.id-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.id-label {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.id-short {
+  font-family: var(--mono);
+  font-size: 1.625rem;
+  line-height: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.id-full {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  line-height: 0.875rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.id-side {
+  flex: none;
+  text-align: right;
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+  color: var(--muted);
+}
+
+.id-side strong {
+  display: block;
+  font-size: 1.0625rem;
+  line-height: 1.375rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* Applied one at a time by issue-card.ts until the details column stops overflowing. */
+.info.fit-1 .notes {
+  display: none;
+}
+
+.info.fit-2 .address {
+  -webkit-line-clamp: 1;
+}
+
+.info.fit-3 .title {
+  -webkit-line-clamp: 1;
+}
+
+.info.fit-4 .step {
+  min-height: 1.75rem;
+}
+
+.info.fit-4 .timeline,
+.info.fit-4 .status-row {
+  margin-top: 0.5rem;
+}
+
+/* ---------- map ---------- */
+
+.map {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 1rem;
+  overflow: hidden;
+  background: var(--sunken);
+}
+
+.map-art,
+.map-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.map-img {
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+
+.has-map .map-img {
+  opacity: 1;
+}
+
+.has-map .map-art,
+.has-map .map-caption {
+  display: none;
+}
+
+.map-land {
+  fill: var(--sunken);
+}
+
+.map-block {
+  fill: var(--line);
+  opacity: 0.55;
+}
+
+.map-streets,
+.map-avenues {
+  fill: none;
+  stroke: var(--bg);
+  stroke-linecap: round;
+}
+
+.map-streets {
+  stroke-width: 9;
+  opacity: 0.7;
+}
+
+.map-avenues {
+  stroke-width: 17;
+}
+
+/* The pin's tip sits exactly on the centre of the panel, which is the request's location. */
+.pin {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2.5rem;
+  height: 3.375rem;
+  transform: translate(-50%, -94.4%);
+  overflow: visible;
+}
+
+.pin-body {
+  fill: var(--accent);
+  stroke: var(--bg);
+  stroke-width: 2;
+}
+
+.pin-dot {
+  fill: var(--bg);
+}
+
+.pin-shadow {
+  fill: #000;
+  opacity: 0.22;
+}
+
+.map-caption {
+  position: absolute;
+  left: 0.625rem;
+  right: 0.625rem;
+  bottom: 0.625rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.625rem;
+  background: var(--bg);
+}
+
+.map-caption-label {
+  font-size: 0.875rem;
+  line-height: 1.125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.map-caption-coords {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--muted);
+}
+
+/* ---------- photo ---------- */
+
+.photo {
+  position: absolute;
+  top: 0.625rem;
+  right: 0.625rem;
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: 0.75rem;
+  border: 0.1875rem solid var(--bg);
+  background: var(--sunken);
+  overflow: hidden;
+  box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.28);
+}
+
+.photo[hidden] {
+  display: none;
+}
+
+.photo-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-close {
+  display: none;
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 3rem;
+  height: 3rem;
+  padding: 0.75rem;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.photo-open .photo {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.photo-open .photo-img {
+  object-fit: contain;
+}
+
+.photo-open .photo-close {
+  display: block;
+}
+
+/* ---------- list: featured request on the left, up to five rows on the right ---------- */
+
+.split {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 19.5rem;
+  grid-template-rows: minmax(0, 1fr);
+  column-gap: 1.25rem;
+}
+
+.detail--compact {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.detail--compact .map {
+  flex: 1 1 auto;
+  min-height: 5rem;
+}
+
+.detail--compact .info {
+  flex: none;
+  padding-top: 0.625rem;
+  overflow: visible;
+}
+
+.detail--compact .title {
+  font-size: 1.5rem;
+  line-height: 1.875rem;
+  -webkit-line-clamp: 1;
+}
+
+.detail--compact .address {
+  margin-top: 0;
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+  -webkit-line-clamp: 1;
+}
+
+.detail--compact .status-row {
+  margin-top: 0.5rem;
+}
+
+.detail--compact .notes {
+  display: none;
+}
+
+.detail--compact .map-caption {
+  display: none;
+}
+
+.detail--compact .photo {
+  width: 4rem;
+  height: 4rem;
+}
+
+.detail--compact .photo-open .photo {
+  width: 100%;
+  height: 100%;
+}
+
+/* In the featured slot the timeline runs left to right and drops the timestamps. */
+.detail--compact .timeline {
+  flex-direction: row;
+  margin-top: 0.75rem;
+}
+
+.detail--compact .step {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  row-gap: 0.25rem;
+  min-width: 0;
+  min-height: 0;
+}
+
+.detail--compact .step::before {
+  left: calc(-100% + 0.875rem);
+  top: 0.375rem;
+  width: calc(100% - 0.875rem);
+  height: 0.125rem;
+}
+
+.detail--compact .step-label {
+  max-width: 100%;
+  padding-right: 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.detail--compact .step-time {
+  display: none;
+}
+
+.detail--compact .idblock {
+  margin-top: 0.625rem;
+  padding-top: 0.5rem;
+  align-items: center;
+}
+
+/* Label and short ID share a line; the full ID wraps onto its own smaller line beneath. */
+.detail--compact .id-main {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.5rem;
+}
+
+.detail--compact .id-short {
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+}
+
+.detail--compact .id-full {
+  flex-basis: 100%;
+  font-size: 0.625rem;
+  line-height: 0.75rem;
+}
+
+.detail--compact .id-side {
+  display: flex;
+  align-items: baseline;
+  gap: 0.375rem;
+}
+
+.detail--compact .id-side strong {
+  font-size: 0.875rem;
+  line-height: 1.125rem;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 4rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: 0.875rem;
+  border: 0.125rem solid transparent;
+  background: var(--surface);
+}
+
+.row[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.row-title {
+  font-size: 1.0625rem;
+  line-height: 1.375rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row-sub {
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row-side {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.row-lead {
+  font-size: 1rem;
+  line-height: 1.375rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.row-state {
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.row-state--open {
+  color: var(--accent);
+}
+
+/* An empty result with a known location keeps the map and puts the message beside it. */
+.detail > .center {
+  padding-bottom: 0;
+}
+
+.detail > .center .center-title {
+  font-size: 1.75rem;
+  line-height: 2.125rem;
+}
+
+.detail > .center .center-body {
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+}
